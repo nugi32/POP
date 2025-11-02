@@ -8,10 +8,10 @@ pragma solidity ^0.8.20;
  */
 
 import "../Logic/AccesControl.sol";
-import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "../Logic/Reputation.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
-contract UserRegister is Initializable, UUPSUpgradeable, AccesControl {
+contract UserRegister is UserReputation, AccesControl, UUPSUpgradeable {
     // =======================
     //        STRUCTS
     // =======================
@@ -75,8 +75,9 @@ contract UserRegister is Initializable, UUPSUpgradeable, AccesControl {
      * @param _employeeAssignment For set employee that assigned.
      * @dev Replaces constructor for upgradeable contracts. Should only be called once.
      */
-    function initialize(address payable _employeeAssignment) public initializer {
+    function initialize(address payable _employeeAssignment, address _mainContract) public initializer {
         __AccessControl_init(_employeeAssignment);
+        __UserReputation_init(_mainContract);
         __UUPSUpgradeable_init();
     }
 
@@ -137,13 +138,19 @@ contract UserRegister is Initializable, UUPSUpgradeable, AccesControl {
      */
     function getMyData()
         external
-        view
         onlyRegistered
         onlyUser
         callerZeroAddr
         returns (User memory)
     {
+        seeReputation();
         return Users[msg.sender];
+    }
+
+     function seeReputation() public returns(uint8) {
+        uint8 rep = _seeMyReputation(msg.sender);
+        Users[msg.sender].reputation = rep;
+        return rep;
     }
 
     /**
@@ -186,8 +193,5 @@ contract UserRegister is Initializable, UUPSUpgradeable, AccesControl {
      */
     function isUserRegistered(address user) external view returns (bool) {
         return Users[user].isRegistered;
-    }
-    function seeReputation(address user) external view returns(uint8) {
-        return Users[user].reputation;
     }
 }

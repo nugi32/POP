@@ -82,7 +82,7 @@ contract TrustlessTeamProtocol is ReentrancyGuardUpgradeable, PausableUpgradeabl
     mapping(uint256 => CancelRequest) internal CancelRequests;
     mapping(uint256 => TaskSubmit) internal TaskSubmits;
     mapping(address => uint256) public withdrawable;
-    mapping (address => uint256) public myPoint;
+    mapping (address => uint8) public myPoint;
     reputationPoint[1] public reputationPoints;
 
     uint256 public taskCounter;
@@ -587,7 +587,7 @@ for (uint256 i = 0; i < reqs.length; i++) {
             rp.deadlineHitMember = newdeadlineHitMember;
         }
 
-    function seePoint(address _user) external view returns (uint256) {
+    function seeMyReputation(address _user) external view returns (uint8) {
         return myPoint[_user];
     }
 }
