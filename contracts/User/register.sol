@@ -77,9 +77,9 @@ contract UserRegister is UserReputation, AccesControl, UUPSUpgradeable {
      * @dev Replaces constructor for upgradeable contracts. Should only be called once.
      */
     function initialize(address payable _employeeAssignment, address _mainContract) public initializer {
-        __AccessControl_init(_employeeAssignment);
-        __UserReputation_init(_mainContract);
         __UUPSUpgradeable_init();
+        __UserReputation_init(_mainContract);
+        __AccessControl_init(_employeeAssignment);
     }
 
     // =======================

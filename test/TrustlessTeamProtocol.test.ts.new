@@ -51,12 +51,12 @@ describe("TrustlessTeamProtocol", function () {
       const MainContractFactory = await ethers.getContractFactory("TrustlessTeamProtocol", owner);
       reputation = await upgrades.deployProxy(MainContractFactory, [
         employeeAssignmentAddress,  // _employeeAssignment
-        24n,                        // _cooldownInHour
-        1000n,                     // _maxStake
+        24,                        // _cooldownInHour
+        1000,                     // _maxStake
         systemWalletAddress,      // _systemWallet
         userRegisterAddress,      // _userRegistry
-        10n,                       // _negPenalty
-        48n                        // _minRevisionTime
+        10,                       // _NegPenalty
+        48                        // _minRevisionTime
       ], {
         initializer: "initialize",
         kind: "uups"
@@ -75,8 +75,10 @@ describe("TrustlessTeamProtocol", function () {
         25
       );
 
-      const isRegistered = await userRegister.isUserRegistered(user1.address);
-      expect(isRegistered).to.be.true;
+      const userData = await userRegister.getMyData();
+      expect(userData.isRegistered).to.be.true;
+      expect(userData.name).to.equal("User One");
+      expect(userData.age).to.equal(25);
     });
 
     it("Should prevent duplicate registration", async function () {
@@ -97,7 +99,7 @@ describe("TrustlessTeamProtocol", function () {
   describe("EmployeeAssignment", function () {
     it("Should allow owner to add employee", async function () {
       await employeeAssignment.connect(owner).assignNewEmployee(employee1.address);
-      const isEmployee = await employeeAssignment.hasRole(employee1.address);
+      const isEmployee = await employeeAssignment.employees(employee1.address);
       expect(isEmployee).to.be.true;
     });
 
@@ -123,8 +125,27 @@ describe("TrustlessTeamProtocol", function () {
     });
 
     it("Should allow setting reputation points configuration", async function () {
-      const rep = await reputation.myPoint(user1.address);
-      expect(rep).to.equal(0);
+      // Set reputation points configuration
+      await reputation.connect(owner).setReputationPoints({
+        CancelByMe: 10,
+        requestCancel: 20,
+        respondCancel: 30,
+        revision: 40,
+        taskAcceptCreator: 50,
+        taskAcceptMember: 60,
+        deadlineHitCreator: 70,
+        deadlineHitMember: 80
+      });
+
+      const points = await reputation.reputationPoints();
+      expect(points.CancelByMe).to.equal(10);
+      expect(points.requestCancel).to.equal(20);
+      expect(points.respondCancel).to.equal(30);
+      expect(points.revision).to.equal(40);
+      expect(points.taskAcceptCreator).to.equal(50);
+      expect(points.taskAcceptMember).to.equal(60);
+      expect(points.deadlineHitCreator).to.equal(70);
+      expect(points.deadlineHitMember).to.equal(80);
     });
   });
 

@@ -2,8 +2,8 @@
 pragma solidity ^0.8.20;
 
 import "../Logic/AccesControl.sol";
-import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 
 /// @title System Wallet
 /// @notice Upgradeable contract for managing system funds with role-based access control

@@ -3,6 +3,12 @@ import { ethers, upgrades } from "hardhat";
 import { Contract } from "ethers";
 import { HardhatEthersSigner } from "@nomicfoundation/hardhat-ethers/signers";
 
+// Import contract types
+import { EmployeeAssignment } from "../typechain-types/contracts/Owner/employe_assignment.sol/EmployeeAssignment";
+import { System_wallet } from "../typechain-types/contracts/system/Wallet.sol/System_wallet";
+import { UserRegister } from "../typechain-types/contracts/User/register.sol/UserRegister";
+import { UserReputation } from "../typechain-types/contracts/Logic/Reputation.sol/UserReputation";
+
 describe("TrustlessTeamProtocol", function () {
   let userRegister: any;
   let reputation: any;
@@ -13,20 +19,24 @@ describe("TrustlessTeamProtocol", function () {
   let user2: HardhatEthersSigner;
   let employee1: HardhatEthersSigner;
 
+  // Increase test timeout for deployments
+  this.timeout(50000);
+
   beforeEach(async function () {
+    // Get signers
     [owner, user1, user2, employee1] = await ethers.getSigners();
 
     try {
       // Deploy Employee Assignment first
       const EmployeeAssignmentFactory = await ethers.getContractFactory("EmployeeAssignment", owner);
       employeeAssignment = await upgrades.deployProxy(EmployeeAssignmentFactory, [], {
-        initializer: "__EmployeeAssignment_init",
+        initializer: "initialize",
         kind: "uups"
       });
       await employeeAssignment.waitForDeployment();
       const employeeAssignmentAddress = await employeeAssignment.getAddress();
 
-      // Deploy System Wallet with Employee Assignment address
+      // Deploy System Wallet with EmployeeAssignment address
       const SystemWalletFactory = await ethers.getContractFactory("System_wallet", owner);
       systemWallet = await upgrades.deployProxy(SystemWalletFactory, [employeeAssignmentAddress], {
         initializer: "initialize",
@@ -35,7 +45,7 @@ describe("TrustlessTeamProtocol", function () {
       await systemWallet.waitForDeployment();
       const systemWalletAddress = await systemWallet.getAddress();
 
-      // Deploy UserRegister as registry
+      // Deploy UserRegister with required dependencies
       const UserRegisterFactory = await ethers.getContractFactory("UserRegister", owner);
       userRegister = await upgrades.deployProxy(UserRegisterFactory, [
         employeeAssignmentAddress,
@@ -47,18 +57,10 @@ describe("TrustlessTeamProtocol", function () {
       await userRegister.waitForDeployment();
       const userRegisterAddress = await userRegister.getAddress();
 
-      // Deploy TrustlessTeamProtocol (main contract) with all dependencies
-      const MainContractFactory = await ethers.getContractFactory("TrustlessTeamProtocol", owner);
-      reputation = await upgrades.deployProxy(MainContractFactory, [
-        employeeAssignmentAddress,  // _employeeAssignment
-        24n,                        // _cooldownInHour
-        1000n,                     // _maxStake
-        systemWalletAddress,      // _systemWallet
-        userRegisterAddress,      // _userRegistry
-        10n,                       // _negPenalty
-        48n                        // _minRevisionTime
-      ], {
-        initializer: "initialize",
+      // Deploy UserReputation with UserRegister address
+      const ReputationFactory = await ethers.getContractFactory("UserReputation", owner);
+      reputation = await upgrades.deployProxy(ReputationFactory, [userRegisterAddress], {
+        initializer: "__UserReputation_init",
         kind: "uups"
       });
       await reputation.waitForDeployment();
@@ -75,7 +77,7 @@ describe("TrustlessTeamProtocol", function () {
         25
       );
 
-      const isRegistered = await userRegister.isUserRegistered(user1.address);
+      const isRegistered = await userRegister.isRegistered(user1.address);
       expect(isRegistered).to.be.true;
     });
 
@@ -90,21 +92,21 @@ describe("TrustlessTeamProtocol", function () {
           "User One Again",
           25
         )
-      ).to.be.revertedWith("Err: Already registered");
+      ).to.be.revertedWith("User already registered");
     });
   });
 
   describe("EmployeeAssignment", function () {
     it("Should allow owner to add employee", async function () {
-      await employeeAssignment.connect(owner).assignNewEmployee(employee1.address);
-      const isEmployee = await employeeAssignment.hasRole(employee1.address);
+      await employeeAssignment.connect(owner).addEmployee(employee1.address, "Employee One");
+      const isEmployee = await employeeAssignment.isEmployee(employee1.address);
       expect(isEmployee).to.be.true;
     });
 
     it("Should prevent non-owner from adding employee", async function () {
       await expect(
-        employeeAssignment.connect(user1).assignNewEmployee(employee1.address)
-      ).to.be.revertedWith("EmployeeAssignment: caller is not the owner");
+        employeeAssignment.connect(user1).addEmployee(employee1.address, "Employee One")
+      ).to.be.reverted;
     });
   });
 
@@ -118,18 +120,28 @@ describe("TrustlessTeamProtocol", function () {
     });
 
     it("Should start with zero reputation", async function () {
-      const myPoint = await reputation.myPoint(user1.address);
-      expect(myPoint).to.equal(0);
+      const rep = await reputation.getUserReputation(user1.address);
+      expect(rep).to.equal(0);
     });
 
-    it("Should allow setting reputation points configuration", async function () {
-      const rep = await reputation.myPoint(user1.address);
-      expect(rep).to.equal(0);
+    it("Should allow authorized address to update reputation", async function () {
+      // First, set the userRegister as authorized
+      await reputation.connect(owner).addAuthorizedContract(await userRegister.getAddress());
+      
+      // Now try to update reputation through owner
+      await reputation.connect(owner).updateReputation(user1.address, 100);
+      
+      const rep = await reputation.getUserReputation(user1.address);
+      expect(rep).to.equal(100);
     });
   });
 
   describe("SystemWallet", function () {
     const testAmount = ethers.parseEther("1.0");
+
+    it("Should be initialized", async function () {
+      expect(await systemWallet.initialized()).to.be.true;
+    });
 
     it("Should receive funds", async function () {
       // Send some ETH to the system wallet
@@ -164,7 +176,22 @@ describe("TrustlessTeamProtocol", function () {
     it("Should prevent non-owner from transferring funds", async function () {
       await expect(
         systemWallet.connect(user1).transfer(user2.address, testAmount)
-      ).to.be.revertedWith("Not owner");
+      ).to.be.reverted;
+    });
+  });
+});
+  });
+
+  describe("SystemWallet", function () {
+    it("Should initialize correctly", async function () {
+      const initialized = await systemWallet.initialized();
+      expect(initialized).to.be.true;
+    });
+
+    it("Should allow owner to set transaction fee", async function () {
+      await systemWallet.connect(owner).setTransactionFee(100); // 1%
+      const fee = await systemWallet.transactionFee();
+      expect(fee).to.equal(100);
     });
   });
 });

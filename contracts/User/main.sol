@@ -3,7 +3,7 @@ pragma solidity ^0.8.20;
 
 import "../Logic/AccesControl.sol";
 import "../Logic/UserAccessControl.sol";
-import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
@@ -164,17 +164,22 @@ contract TrustlessTeamProtocol is AccesControl, UserAccessControl, ReentrancyGua
     // ===========================
     // INITIALIZER
     // ===========================
-    function initialize(address _employeeAssignment, uint64 _cooldownInHour, uint32 _maxStake, address payable _systemWallet, address _userRegistry, uint32 _NegPenalty, uint64 _minRevisionTime) public initializer onlyOwner callerZeroAddr {
-        StateVar storage sv = StateVars;
+    function initialize(address _employeeAssignment, uint64 _cooldownInHour, uint32 _maxStake, address payable _systemWallet, address _userRegistry, uint32 _NegPenalty, uint64 _minRevisionTime) public initializer callerZeroAddr {
+        // Validate addresses
         zero_Address(_systemWallet);
         zero_Address(_employeeAssignment);
         zero_Address(_userRegistry);
+
+        // Initialize parent contracts first
         __UUPSUpgradeable_init();
         __AccessControl_init(_employeeAssignment);
         __UserAccessControl_init(_userRegistry);
-        systemWallet = _systemWallet;
         __ReentrancyGuard_init();
         __Pausable_init();
+
+        // Initialize contract state
+        StateVar storage sv = StateVars;
+        systemWallet = _systemWallet;
         sv.cooldownInHour = _cooldownInHour;
         k = 1e6;
         taskCounter = 0;
