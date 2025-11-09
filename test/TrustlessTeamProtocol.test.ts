@@ -4,8 +4,7 @@ import { Contract } from "ethers";
 import { HardhatEthersSigner } from "@nomicfoundation/hardhat-ethers/signers";
 
 describe("TrustlessTeamProtocol", function () {
-  let userRegister: any;
-  let reputation: any;
+  let trustlessTeamProtocol: any;
   let employeeAssignment: any;
   let systemWallet: any;
   let owner: HardhatEthersSigner;
@@ -20,7 +19,7 @@ describe("TrustlessTeamProtocol", function () {
       // Deploy Employee Assignment first
       const EmployeeAssignmentFactory = await ethers.getContractFactory("EmployeeAssignment", owner);
       employeeAssignment = await upgrades.deployProxy(EmployeeAssignmentFactory, [], {
-        initializer: "__EmployeeAssignment_init",
+        initializer: "initialize",
         kind: "uups"
       });
       await employeeAssignment.waitForDeployment();
@@ -35,33 +34,31 @@ describe("TrustlessTeamProtocol", function () {
       await systemWallet.waitForDeployment();
       const systemWalletAddress = await systemWallet.getAddress();
 
-      // Deploy UserRegister as registry
-      const UserRegisterFactory = await ethers.getContractFactory("UserRegister", owner);
-      userRegister = await upgrades.deployProxy(UserRegisterFactory, [
-        employeeAssignmentAddress,
-        systemWalletAddress
-      ], {
-        initializer: "initialize",
-        kind: "uups"
-      });
-      await userRegister.waitForDeployment();
-      const userRegisterAddress = await userRegister.getAddress();
-
-      // Deploy TrustlessTeamProtocol (main contract) with all dependencies
+      // Deploy TrustlessTeamProtocol (main contract) with dependencies
       const MainContractFactory = await ethers.getContractFactory("TrustlessTeamProtocol", owner);
-      reputation = await upgrades.deployProxy(MainContractFactory, [
-        employeeAssignmentAddress,  // _employeeAssignment
-        24n,                        // _cooldownInHour
-        1000n,                     // _maxStake
-        systemWalletAddress,      // _systemWallet
-        userRegisterAddress,      // _userRegistry
-        10n,                       // _negPenalty
-        48n                        // _minRevisionTime
+      trustlessTeamProtocol = await upgrades.deployProxy(MainContractFactory, [
+        employeeAssignmentAddress,
+        systemWalletAddress,
+        24n, // cooldownInHour
+        1000000000n, // maxStake (large enough for test)
+        10n, // NegPenalty
+        100n, // maxReward
+        24n, // minRevisionTimeInHour
+        5n, // feePercentage
+        3n, // maxRevision
+        10n, // CancelByMe
+        5n, // requestCancel
+        5n, // respondCancel
+        3n, // revision
+        20n, // taskAcceptCreator
+        20n, // taskAcceptMember
+        15n, // deadlineHitCreator
+        15n // deadlineHitMember
       ], {
         initializer: "initialize",
         kind: "uups"
       });
-      await reputation.waitForDeployment();
+      await trustlessTeamProtocol.waitForDeployment();
     } catch (error) {
       console.error("Error during deployment:", error);
       throw error;
@@ -70,27 +67,29 @@ describe("TrustlessTeamProtocol", function () {
 
   describe("UserRegister", function () {
     it("Should allow user registration", async function () {
-      await userRegister.connect(user1).register(
+      await trustlessTeamProtocol.connect(user1).register(
         "User One",
         25
       );
 
-      const isRegistered = await userRegister.isUserRegistered(user1.address);
-      expect(isRegistered).to.be.true;
+      const user1Data = await trustlessTeamProtocol.connect(user1).getMyData();
+      expect(user1Data.name).to.equal("User One");
+      expect(user1Data.age).to.equal(25);
+      expect(user1Data.isRegistered).to.be.true;
     });
 
     it("Should prevent duplicate registration", async function () {
-      await userRegister.connect(user1).register(
+      await trustlessTeamProtocol.connect(user1).register(
         "User One",
         25
       );
 
       await expect(
-        userRegister.connect(user1).register(
+        trustlessTeamProtocol.connect(user1).register(
           "User One Again",
           25
         )
-      ).to.be.revertedWith("Err: Already registered");
+      ).to.be.revertedWithCustomError(trustlessTeamProtocol, "AlredyRegistered");
     });
   });
 
@@ -111,20 +110,20 @@ describe("TrustlessTeamProtocol", function () {
   describe("UserReputation", function () {
     beforeEach(async function () {
       // Register user first
-      await userRegister.connect(user1).register(
+      await trustlessTeamProtocol.connect(user1).register(
         "User One",
         25
       );
     });
 
     it("Should start with zero reputation", async function () {
-      const myPoint = await reputation.myPoint(user1.address);
-      expect(myPoint).to.equal(0);
+      const data = await trustlessTeamProtocol.connect(user1).getMyData();
+      expect(data.reputation).to.equal(0);
     });
 
     it("Should allow setting reputation points configuration", async function () {
-      const rep = await reputation.myPoint(user1.address);
-      expect(rep).to.equal(0);
+      const data = await trustlessTeamProtocol.connect(user1).getMyData();
+      expect(data.reputation).to.equal(0);
     });
   });
 

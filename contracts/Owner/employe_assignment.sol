@@ -39,14 +39,12 @@ contract EmployeeAssignment is UUPSUpgradeable {
     /// @param oldOwner The address of the previous owner
     /// @param newOwner The address of the new owner
     event OwnerChanged(address indexed oldOwner, address indexed newOwner);
-    
 
-    function __EmployeeAssignment_init() public initializer
-    //onlyInitializing //uncomment modifier in production version(this for local testing only)
-    {
+     function initialize() public initializer {
         __UUPSUpgradeable_init();
         owner = msg.sender;
     }
+
     // ================================
     // Modifiers
     // ================================
@@ -88,6 +86,7 @@ contract EmployeeAssignment is UUPSUpgradeable {
         
         // Validate that employee doesn't already have this role
         require(!employees[newEmployee], "EmployeeAssignment: employee already has this role");
+        require(newEmployee != owner,"EmployeeAssignment: owner can be employee");
         
         // Assign the role to the employee
         employees[newEmployee]= true;

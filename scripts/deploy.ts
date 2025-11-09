@@ -4,18 +4,18 @@ import { writeFileSync } from "fs";
 import { join } from "path";
 
 async function main() {
-  // Deploy EmployeeAssignment first
+  // Deploy EmployeeAssignment first (UUPS proxy)
   console.log("Deploying EmployeeAssignment...");
   const EmployeeAssignment = await ethers.getContractFactory("EmployeeAssignment");
   const employeeAssignment = await upgrades.deployProxy(EmployeeAssignment, [], {
-    initializer: "__EmployeeAssignment_init",
+    initializer: "initialize",
     kind: "uups"
   });
   await employeeAssignment.waitForDeployment();
-  const employeeAssignmentAddress = await employeeAssignment.getAddress();
+  const employeeAssignmentAddress = await employeeAssignment.getAddress(); //addr proxy
   console.log("EmployeeAssignment deployed to:", employeeAssignmentAddress);
 
-  // Deploy System Wallet with EmployeeAssignment address
+  // Deploy System Wallet with EmployeeAssignment address (UUPS proxy)
   console.log("Deploying System Wallet...");
   const SystemWallet = await ethers.getContractFactory("System_wallet");
   const systemWallet = await upgrades.deployProxy(SystemWallet, [employeeAssignmentAddress], {
@@ -26,38 +26,34 @@ async function main() {
   const systemWalletAddress = await systemWallet.getAddress();
   console.log("System Wallet deployed to:", systemWalletAddress);
 
-  // Deploy UserRegister with required dependencies
-  console.log("Deploying UserRegister...");
-  const UserRegister = await ethers.getContractFactory("UserRegister");
-  const userRegister = await upgrades.deployProxy(UserRegister, [
-    employeeAssignmentAddress,
-    systemWalletAddress
-  ], {
-    initializer: "initialize",
-    kind: "uups"
-  });
-  await userRegister.waitForDeployment();
-  const userRegisterAddress = await userRegister.getAddress();
-  console.log("UserRegister deployed to:", userRegisterAddress);
-
-  // Deploy Main Protocol with all dependencies
+  // Deploy TrustlessTeamProtocol with EmployeeAssignment and SystemWallet addresses (UUPS proxy)
   console.log("Deploying TrustlessTeamProtocol...");
-  const MainContract = await ethers.getContractFactory("TrustlessTeamProtocol");
-  const mainContract = await upgrades.deployProxy(MainContract, [
-    employeeAssignmentAddress,  // _employeeAssignment
-    24n,                        // _cooldownInHour
-    1000n,                     // _maxStake
-    systemWalletAddress,       // _systemWallet
-    userRegisterAddress,       // _userRegistry
-    10n,                       // _negPenalty
-    48n                        // _minRevisionTime
+  const TrustlessTeamProtocol = await ethers.getContractFactory("TrustlessTeamProtocol");
+  const trustlessTeamProtocol = await upgrades.deployProxy(TrustlessTeamProtocol, [
+    employeeAssignmentAddress, // _employeeAssignment
+    systemWalletAddress,       // _systemWallet (payable)
+    24n,                       // _cooldownInHour
+    4294967295n,               // _maxStake (uint32 max)
+    10n,                       // _NegPenalty
+    100n,                      // _maxReward (ether units)
+    24n,                       // _minRevisionTimeInHour
+    5n,                        // _feePercentage
+    3n,                        // _maxRevision
+    10n,                       // _CancelByMe
+    5n,                        // _requestCancel
+    5n,                        // _respondCancel
+    3n,                        // _revision
+    20n,                       // _taskAcceptCreator
+    20n,                       // _taskAcceptMember
+    15n,                       // _deadlineHitCreator
+    15n                        // _deadlineHitMember
   ], {
     initializer: "initialize",
     kind: "uups"
   });
-  await mainContract.waitForDeployment();
-  const mainContractAddress = await mainContract.getAddress();
-  console.log("TrustlessTeamProtocol deployed to:", mainContractAddress);
+  await trustlessTeamProtocol.waitForDeployment();
+  const trustlessTeamProtocolAddress = await trustlessTeamProtocol.getAddress();
+  console.log("TrustlessTeamProtocol deployed to:", trustlessTeamProtocolAddress);
 
   // Only verify on real networks (not localhost or hardhat)
   const networkName = network.name;
@@ -71,8 +67,7 @@ async function main() {
     try {
       await verify(employeeAssignmentAddress);
       await verify(systemWalletAddress);
-      await verify(userRegisterAddress);
-      await verify(mainContractAddress);
+      await verify(trustlessTeamProtocolAddress);
     } catch (error) {
       console.log("Error verifying contracts:", error);
     }
@@ -82,8 +77,7 @@ async function main() {
   const addresses = {
     EmployeeAssignment: employeeAssignmentAddress,
     SystemWallet: systemWalletAddress,
-    UserRegister: userRegisterAddress,
-    TrustlessTeamProtocol: mainContractAddress,
+    TrustlessTeamProtocol: trustlessTeamProtocolAddress,
   };
 
   // Save addresses to a file

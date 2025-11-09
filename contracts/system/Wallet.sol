@@ -35,8 +35,8 @@ contract System_wallet is AccesControl, UUPSUpgradeable, ReentrancyGuardUpgradea
     /// @param _employeeAssignment The address of the EmployeeAssignment contract that manages roles
     function initialize(address _employeeAssignment) public initializer {
         __UUPSUpgradeable_init();
-        __AccessControl_init(_employeeAssignment);
         __ReentrancyGuard_init();
+        employeeAssignment = IEmployeeAssignment(_employeeAssignment);
     }
 
     /// @notice Transfers funds from the wallet to a specified address

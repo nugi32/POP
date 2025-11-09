@@ -25,20 +25,6 @@ abstract contract AccesControl is Initializable {
     IEmployeeAssignment public employeeAssignment;
 
     // ===========================
-    // Initialization
-    // ===========================
-
-    /// @dev Replacement for constructor to initialize the EmployeeAssignment contract address.
-    /// @param _employeeAssignment The address of the EmployeeAssignment contract.
-    function __AccessControl_init(address _employeeAssignment) public initializer
-    //onlyInitializing //uncomment modifier in production version(this for local testing only)
-    {
-
-        require(_employeeAssignment != address(0), "AccessControl: invalid address");
-        employeeAssignment = IEmployeeAssignment(_employeeAssignment);
-    }
-
-    // ===========================
     // Access Modifiers
     // ===========================
 
