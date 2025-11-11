@@ -30,6 +30,41 @@
       "address": "0x719EFBF370A9b9d672b2c11A4F223C1c77f7421b",
       "txHash": "0xeb32c2dec47d0bdfb58f492a03db1eab62ae331818a54cb07e4f55250fd9f044",
       "kind": "uups"
+    },
+    {
+      "address": "0xF3721E26C89c8895166DFB90071c9d8BC23e8c12",
+      "txHash": "0xc7808835b23689eca0ff79b0c3b88d6beefc7f939862fba57dbda9cb1b426460",
+      "kind": "uups"
+    },
+    {
+      "address": "0x1A927379B9313A5B16a6D7b2B0f9fe5F853AD50D",
+      "txHash": "0x4d2db155c8b3fb3d61e4ee1ce9b0d27d9046639228064d815df8c4ed825af0da",
+      "kind": "uups"
+    },
+    {
+      "address": "0x1fA43d00e6D5793Fed470B34F61949d1A74EDd4B",
+      "txHash": "0xcab890b5918882f5935ed31c1564fd09534ad786ed95e70bd1ba6b5457260867",
+      "kind": "uups"
+    },
+    {
+      "address": "0xFb5cD0365b6d0e9148b6C9e51bcCFB9da2B78221",
+      "txHash": "0xca3ea8c4d767c13b77d833e7637bca5f1b4702d1961b130eca0dab443c8de0c9",
+      "kind": "uups"
+    },
+    {
+      "address": "0x450442a2A78B0A1Fb4C35e305B6935AF306A0116",
+      "txHash": "0xcb1c67bba5a5a3d6179e0742a5e9e4770d578bf9466881fadf248cdee6414b61",
+      "kind": "uups"
+    },
+    {
+      "address": "0x68d9Fa3F600Ef949b9B5dD63C224e75d49498dea",
+      "txHash": "0xdd5f9961a3026629fbd6e46b38e4ef19e2cef89fa509f79aa43da37913deee33",
+      "kind": "uups"
+    },
+    {
+      "address": "0xA71aD4B227eD04D851E6309C3847E567Ffca35fE",
+      "txHash": "0x7917cb16f0d3bc5ad7959d241b562ec70628dd2a4f6f821770a9e82093923e75",
+      "kind": "uups"
     }
   ],
   "impls": {

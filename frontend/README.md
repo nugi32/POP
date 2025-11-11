@@ -1,36 +1,39 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+POP frontend (plain TypeScript, no framework)
 
-## Getting Started
+What this frontend does
+- Loads ABIs automatically from the repo `artifacts/` directory when you serve from the repo root.
+- Fallback: if artifacts aren't reachable, it will try to load ABI files from `frontend/src/contracts/` (copy the three contract JSONs there).
+- Auto-loads known deployed proxy addresses from `frontend/src/contracts/addresses.json` (or `/contracts/addresses.json` in served `dist`) if present.
+- Renders all functions from three contracts: EmployeeAssignment, System_wallet, TrustlessTeamProtocol.
+- Connects to injected wallet (MetaMask) and supports read calls and transactions (including payable).
 
-First, run the development server:
+Quick start (Windows PowerShell)
+1) Copy ABIs (optional):
+   If you prefer not to serve the whole repo, copy the three artifact JSON files into `frontend/src/contracts/`:
+   - artifacts/contracts/Owner/employe_assignment.sol/EmployeeAssignment.json
+   - artifacts/contracts/system/Wallet.sol/System_wallet.json
+   - artifacts/contracts/User/TrustlessTeamProtocol.sol/TrustlessTeamProtocol.json
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+   You can also copy an addresses file `addresses.json` into that folder with keys:
+   {
+     "EmployeeAssignment": "0x...",
+     "System_wallet": "0x...",
+     "TrustlessTeamProtocol": "0x..."
+   }
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+2) Install dev dependencies (inside frontend):
+   cd frontend
+   npm ci
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+3) Build and serve locally (this will compile TypeScript and copy JSON files into `dist/contracts`):
+   npm run start
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+4) Open in browser:
+   http://localhost:8080
 
-## Learn More
+Notes
+- The server serves `./dist` — the build step copies any JSON files under `frontend/src/contracts/` into `dist/contracts/` so the frontend can fetch them without manual edits.
+- If you serve the repo root (e.g. using a different static server) the app will try `/artifacts/...` first and will find the ABIs there.
+- The UI expects an injected wallet and the chain to be set accordingly (Lisk Sepolia / Sepolia). If you want the frontend to use a specific RPC without MetaMask, we can add a provider selector.
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+If you want me to also copy the current artifact JSON files into `frontend/src/contracts/` automatically from the repo, tell me and I'll add that step (it will modify files under `frontend/src/contracts/`).

@@ -1,28 +1,13 @@
 {
-  "name": "frontend",
-  "version": "0.1.0",
+  "name": "pop-frontend",
+  "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "eslint"
-  },
-  "dependencies": {
-    "ethers": "^6.15.0",
-    "next": "16.0.1",
-    "react": "19.2.0",
-    "react-dom": "19.2.0",
-    "web3modal": "^1.9.12"
+    "build": "tsc -p . && node ./scripts/copy-contracts.js",
+    "start": "npm run build && npx http-server -c-1 -p 8080 ./dist"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "eslint": "^9",
-    "eslint-config-next": "16.0.1",
-    "tailwindcss": "^4",
-    "typescript": "^5"
+    "http-server": "^14.1.1",
+    "typescript": "^5.1.6"
   }
 }
