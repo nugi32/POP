@@ -3,9 +3,9 @@ declare const ethers: any;
 type AbiEntry = any;
 
 const CONTRACT_ARTIFACTS: Record<string, string> = {
-  EmployeeAssignment: '/artifacts/contracts/Owner/employe_assignment.sol/EmployeeAssignment.json',
-  System_wallet: '/artifacts/contracts/system/Wallet.sol/System_wallet.json',
-  TrustlessTeamProtocol: '/artifacts/contracts/User/TrustlessTeamProtocol.sol/TrustlessTeamProtocol.json'
+  EmployeeAssignment: './contracts/Owner/employe_assignment.sol/EmployeeAssignment.json',
+  System_wallet: './contracts/system/Wallet.sol/System_wallet.json',
+  TrustlessTeamProtocol: './contracts/User/TrustlessTeamProtocol.sol/TrustlessTeamProtocol.json'
 };
 
 const connectBtn = document.getElementById('connectBtn') as HTMLButtonElement;

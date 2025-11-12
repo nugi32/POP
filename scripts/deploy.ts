@@ -1,3 +1,97 @@
+/*import { ethers, upgrades, network } from "hardhat";
+import { parseEther, formatEther } from "ethers";
+import { writeFileSync } from "fs";
+import { join } from "path";
+
+async function main() {
+  // Deploy EmployeeAssignment first (UUPS proxy)
+  console.log("Deploying EmployeeAssignment...");
+
+  const [deployer] = await ethers.getSigners();
+  const deployerAddr = await deployer.getAddress();
+  const deployerBalance = await ethers.provider.getBalance(deployerAddr);
+  console.log(`Deployer address: ${deployerAddr} — balance: ${formatEther(deployerBalance)} ETH`);
+
+  const minBalance = parseEther("0.01");
+  if (deployerBalance < minBalance) {
+    throw new Error(
+      `Deployer ${deployerAddr} has insufficient balance (${formatEther(deployerBalance)} ETH). Fund this account on ${network.name}.`,
+    );
+  }
+
+  // Deploy EmployeeAssignment (UUPS proxy)
+  const EmployeeAssignment = await ethers.getContractFactory("EmployeeAssignment");
+  const employeeAssignment = await upgrades.deployProxy(EmployeeAssignment, [], {
+    initializer: "initialize",
+    kind: "uups"
+  });
+  await employeeAssignment.waitForDeployment();
+  const employeeAssignmentAddress = await employeeAssignment.getAddress();
+  console.log("✅ EmployeeAssignment deployed to:", employeeAssignmentAddress);
+
+  // Deploy System Wallet
+  console.log("Deploying System Wallet...");
+  const SystemWallet = await ethers.getContractFactory("System_wallet");
+  const systemWallet = await upgrades.deployProxy(SystemWallet, [employeeAssignmentAddress], {
+    initializer: "initialize",
+    kind: "uups"
+  });
+  await systemWallet.waitForDeployment();
+  const systemWalletAddress = await systemWallet.getAddress();
+  console.log("✅ System Wallet deployed to:", systemWalletAddress);
+
+  // Deploy TrustlessTeamProtocol
+  console.log("Deploying TrustlessTeamProtocol...");
+  const TrustlessTeamProtocol = await ethers.getContractFactory("TrustlessTeamProtocol");
+  const trustlessTeamProtocol = await upgrades.deployProxy(TrustlessTeamProtocol, [
+    employeeAssignmentAddress, // _employeeAssignment
+    systemWalletAddress,       // _systemWallet
+    24n,                       // _cooldownInHour
+    4294967295n,               // _maxStake
+    10n,                       // _NegPenalty
+    100n,                      // _maxReward
+    24n,                       // _minRevisionTimeInHour
+    5n,                        // _feePercentage
+    3n,                        // _maxRevision
+    10n,                       // _CancelByMe
+    5n,                        // _requestCancel
+    5n,                        // _respondCancel
+    3n,                        // _revision
+    20n,                       // _taskAcceptCreator
+    20n,                       // _taskAcceptMember
+    15n,                       // _deadlineHitCreator
+    15n                        // _deadlineHitMember
+  ], {
+    initializer: "initialize",
+    kind: "uups"
+  });
+  await trustlessTeamProtocol.waitForDeployment();
+  const trustlessTeamProtocolAddress = await trustlessTeamProtocol.getAddress();
+  console.log("✅ TrustlessTeamProtocol deployed to:", trustlessTeamProtocolAddress);
+
+  // Save deployed addresses
+  const addresses = {
+    EmployeeAssignment: employeeAssignmentAddress,
+    SystemWallet: systemWalletAddress,
+    TrustlessTeamProtocol: trustlessTeamProtocolAddress,
+  };
+
+  const addressesPath = join(__dirname, '..', 'frontend', 'src', 'contracts', 'addresses.json');
+  writeFileSync(addressesPath, JSON.stringify(addresses, null, 2));
+  console.log("\n📦 Deployment completed!");
+  console.log("Addresses saved to frontend/src/contracts/addresses.json");
+
+  return addresses;
+}
+
+main()
+  .then(() => process.exit(0))
+  .catch((error) => {
+    console.error("❌ Deployment failed:", error);
+    process.exit(1);
+  });
+*/
+
 import { ethers, upgrades, network } from "hardhat";
 import { verify } from "./utils";
 import { parseEther, formatEther } from "ethers";
@@ -120,13 +214,13 @@ async function main() {
   };
 
   // Save addresses to a file
-  const addressesPath = join(__dirname, '..', 'frontend', 'src', 'contracts', 'addresses.json');
+  const addressesPath = join(__dirname, '..', 'frontend-dev', 'src', 'contracts', 'addresses.json');
   writeFileSync(
     addressesPath,
     JSON.stringify(addresses, null, 2)
   );
 
-  console.log("\nDeployment completed! Addresses saved to frontend/src/contracts/addresses.json");
+  console.log("\nDeployment completed! Addresses saved to frontend-dev/src/contracts/addresses.json");
   
   return addresses;
 }

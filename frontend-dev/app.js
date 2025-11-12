@@ -3,9 +3,9 @@
   // Expects to be served from repo root so it can fetch artifact JSON from /artifacts/.. paths.
 
   const CONTRACT_ARTIFACTS = {
-    EmployeeAssignment: '/artifacts/contracts/Owner/employe_assignment.sol/EmployeeAssignment.json',
-    System_wallet: '/artifacts/contracts/system/Wallet.sol/System_wallet.json',
-    TrustlessTeamProtocol: '/artifacts/contracts/User/TrustlessTeamProtocol.sol/TrustlessTeamProtocol.json'
+    EmployeeAssignment: './contracts/Owner/employe_assignment.sol/EmployeeAssignment.json',
+    System_wallet: './contracts/system/Wallet.sol/System_wallet.json',
+    TrustlessTeamProtocol: './contracts/User/TrustlessTeamProtocol.sol/TrustlessTeamProtocol.json'
   };
 
   const connectBtn = document.getElementById('connectBtn');

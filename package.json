@@ -2,12 +2,13 @@
   "name": "hardhat",
   "version": "1.0.0",
   "scripts": {
-    "test": "hardhat test",
-    "deploy": "ts-node --files ./scripts/deploy.ts",
-    "deploy:sepolia": "hardhat run scripts/deploy.ts --network liskSepolia",
-    "verify": "hardhat verify --network liskSepolia",
-    "upgrade": "ts-node --files ./scripts/upgrade.ts"
-  },
+  "test": "hardhat test",
+  "deploy": "ts-node --files ./scripts/deploy.ts",
+  "deploy:lisk": "hardhat run scripts/deploy.ts --network liskSepolia",
+  "deploy:sepolia": "hardhat run scripts/deploy.ts --network sepolia",
+  "verify": "hardhat verify --network liskSepolia",
+  "upgrade": "ts-node --files ./scripts/upgrade.ts"
+},
   "devDependencies": {
     "@nomicfoundation/hardhat-chai-matchers": "^2.1.0",
     "@nomicfoundation/hardhat-ethers": "^3.1.2",
