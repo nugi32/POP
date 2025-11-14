@@ -34,6 +34,7 @@ contract TrustlessTeamProtocol is
 
     /// @notice Task lifecycle status
     enum TaskStatus { NonExistent, Active, OpenRegistration, InProgres, CancelRequested, Completed, Cancelled }
+    enum TaskValue {Low, MidleLow,  Midle, MidleHigh, High, UltraHigh}
 
     /// @notice Join/submission state per user relative to a task
     enum UserTask { None, Request, Accepted, Submitted, Revision, Cancelled }
@@ -44,14 +45,63 @@ contract TrustlessTeamProtocol is
     /// @notice Submission status
     enum SubmitStatus { NoneStatus, Pending, RevisionNeeded, Accepted }
 
+    function getProjectValueCategory(uint256 _value) internal view returns (TaskValue) {
+        if (_value <= Stakes.low) {
+            return TaskValue.Low;
+        } else if (_value <= Stakes.midleLow) {
+            return TaskValue.MidleLow;
+        } else if (_value <= Stakes.midle) {
+            return TaskValue.Midle;
+        } else if (_value <= Stakes.midleHigh) {
+            return TaskValue.MidleHigh;
+        } else if (_value <= Stakes.high) {
+            return TaskValue.High;
+        } else {
+            return TaskValue.UltraHigh;
+        }
+    }
+
+
+function getCreatorStake(uint256 __value) internal view returns (uint256) {
+    stakeAmount storage sa = stakeAmounts;
+
+    TaskValue category = getProjectValueCategory(__value);
+
+    if (category == TaskValue.Low) {
+        return sa.low;
+    } else if (category == TaskValue.MidleLow) {
+        return sa.midLow;
+    } else if (category == TaskValue.Midle) {
+        return sa.mid;
+    } else if (category == TaskValue.MidleHigh) {
+        return sa.midHigh;
+    } else if (category == TaskValue.High) {
+        return sa.high;
+    } else {
+        return sa.ultraHigh;
+    }
+}
+
     // =============================================================
     // STRUCTS
     // =============================================================
+
+    /// @notice simple user model local to this contract
+    struct User {
+        uint256 totalTasksCreated;
+        uint256 totalTasksCompleted;
+        uint256 totalTasksFailed;
+        uint32 reputation;
+        uint8 age;
+        bool isRegistered;
+        string name;
+    }
 
     /// @notice Core task data
     struct Task {
         uint256 taskId;
         TaskStatus status;
+        TaskValue value;
         address creator;
         address member;
         string title;
@@ -97,6 +147,24 @@ contract TrustlessTeamProtocol is
         uint256 newDeadline; // timestamp
     }
 
+    //State Variable struct
+
+    struct componentWeightPercentage {
+        uint64 rewardScore;
+        uint64 reputationScore;
+        uint64 deadlineScore;
+        uint64 revisionScore;
+    }
+
+    struct stakeAmount {
+        uint64 low;
+        uint64 midLow;
+        uint32 mid;
+        uint32 midHigh;
+        uint32 high;
+        uint32 ultraHigh;
+    }
+
     /// @notice Reputation and penalty configuration
     struct reputationPoint {
         uint32 CancelByMe;
@@ -120,17 +188,14 @@ contract TrustlessTeamProtocol is
         uint32 maxRevision;
     }
 
-    /// @notice simple user model local to this contract
-    struct User {
-        uint256 totalTasksCreated;
-        uint256 totalTasksCompleted;
-        uint256 totalTasksFailed;
-        uint32 reputation;
-        uint8 age;
-        bool isRegistered;
-        string name;
+    struct Stake {
+        uint256 low;
+        uint256 midleLow;
+        uint256 midle;
+        uint256 midleHigh;
+        uint256 high;
+        uint256 ultraHigh;
     }
-
     // =============================================================
     // STATE
     // =============================================================
@@ -150,6 +215,9 @@ contract TrustlessTeamProtocol is
     // Config / system
     reputationPoint public reputationPoints;
     StateVar public StateVars;
+    Stake public Stakes;
+    componentWeightPercentage public componentWeightPercentages;
+    stakeAmount public stakeAmounts;
 
     uint256 public taskCounter;
     uint256 internal feeCollected;
@@ -184,9 +252,16 @@ contract TrustlessTeamProtocol is
     event DeadlineTriggered(uint256 indexed taskId);
 
     // Payments / system
+    event StateVarsChanged(
+        uint64 NewCooldownInHour,
+        uint32 NewMinRevisionTimeInHour,
+        uint32 NewNegPenalty, 
+        uint32 NewMaxReward, 
+        uint32 NewFeePercentage, 
+        uint32 NewMaxStake,
+        uint32 NewMaxRevision
+    );
     event Withdrawal(address indexed user, uint256 amount);
-    event CooldownChanged(uint64 newCooldown);
-    event MaxStakeChanged(uint32 newMaxStake);
     event AlgoConstantChanged(uint256 newK);
     event SystemWalletChanged(address newWallet);
     event FeeWithdrawnToSystemWallet(uint256 amount);
@@ -215,6 +290,10 @@ contract TrustlessTeamProtocol is
     error TooManyRevisions();
     error InvalidRewardAmount();
     error InvalidReason();
+
+    //system
+    error InvalidMaxStakeAmount();
+    error TotalMustBe10();
 
     //submision
     error InvalidNote();
@@ -388,88 +467,6 @@ contract TrustlessTeamProtocol is
         return Users[msg.sender];
     }
 //
-//  // =============================================================
-    // INTERNAL HELPERS
-    // =============================================================
-
-    /**
-     * @notice Read stored reputation for a given address
-     * @dev Fallback to myPoint mapping if Users entry not present (backwards compatibility)
-     */
-    function _seeReputation(address who) internal view returns (uint32) {
-        if (Users[who].isRegistered) {
-            return Users[who].reputation;
-        } else {
-            return 0;
-        }
-    }
-
-    /**
-     * @notice Counter for penalty complement (100 - NegPenalty)
-     */
-    function _CounterPenalty() internal view returns (uint32) {
-        StateVar storage sv = StateVars;
-        return uint32(100) - sv.NegPenalty;
-    }
-
-    /**
-     * @notice Reset cancel request slot for a task
-     */
-    function _resetCancelRequest(uint256 taskId) internal {
-        CancelRequest storage cr = CancelRequests[taskId];
-        cr.requester = address(0);
-        cr.counterparty = address(0);
-        cr.expiry = 0;
-        cr.status = TaskRejectRequest.None;
-        cr.reason = "";
-    }
-
-    // =============================================================
-    // STAKE CALCULATIONS
-    // =============================================================
-
-    /**
-     * @notice Calculate member stake required for a task for an applicant
-     * @param taskId id of task
-     * @param applicant address of applicant
-     * @return memberStake calculated in wei
-     */
-    function getMemberRequiredStakeFor(uint256 taskId, address applicant) public view returns (uint256) {
-        Task storage t = Tasks[taskId];
-        uint256 hoursInput = uint256(t.deadlineHours);
-        // formula: reward * (hours+1) * algo / ((repApplicant+1)*(repCreator+1)*(maxRevision+1))
-        // uses reward in wei
-        uint256 memberStake = (t.reward * (hoursInput + 1) * algoConstant) /
-            (uint256(_seeReputation(applicant) + 1) * uint256(_seeReputation(t.creator) + 1) * uint256(t.maxRevision + 1));
-        return memberStake;
-    }
-
-    /**
-     * @notice Calculate creator stake required (explicit)
-     * @param creator creator address (for reputation)
-     * @param rewardWei reward in wei
-     * @param maxRevision allowed revisions
-     * @param deadlineHours configured hours
-     * @return creatorStake in wei
-     */
-    function getCreatorRequiredStakeFor(
-        address creator,
-        uint256 rewardWei,
-        uint8 maxRevision,
-        uint256 deadlineHours
-    ) public view returns (uint256) {
-        uint256 creatorStake = (rewardWei * (uint256(maxRevision) + 1) * algoConstant) /
-            (uint256(_seeReputation(creator) + 1) * (deadlineHours + 1));
-        return creatorStake;
-    }
-
-    /**
-     * @notice Backwards-compatible wrapper using msg.sender as applicant
-     */
-    function getMemberRequiredStake(uint256 taskId) public view returns (uint256) {
-        return getMemberRequiredStakeFor(taskId, msg.sender);
-    }
-//
     // =============================================================
     // TASK LIFECYCLE
     // =============================================================
@@ -492,6 +489,7 @@ contract TrustlessTeamProtocol is
         uint256 RewardEther
     ) external payable whenNotPaused onlyRegistered onlyUser callerZeroAddr {
         StateVar storage sv = StateVars;
+        componentWeightPercentage storage wp = componentWeightPercentages;
         // increment task id first (1-indexed)
         taskCounter++;
         uint256 taskId = taskCounter;
@@ -507,13 +505,18 @@ contract TrustlessTeamProtocol is
         if (RewardEther == 0) revert InvalidRewardAmount();
         if (RewardEther > sv.maxReward) revert InvalidRewardAmount();
 
+        uint256 Value = ((wp.rewardScore / 10) * RewardEther) + ((wp.reputationScore / 10) * _seeReputation(msg.sender)) + 
+                        ((wp.deadlineScore / 10) * _DeadlineHours) + ((wp.revisionScore / 10) * maximumRevision);
+
+
         // compute creator stake
-        uint256 creatorStake = getCreatorRequiredStakeFor(msg.sender, _reward, maximumRevision, _DeadlineHours);
+        uint256 creatorStake = getCreatorStake(Value);
         if (sv.maxStake < creatorStake) revert StakeHitLimit();
 
         // fee (protocol) taken from creatorStake (business decision)
         uint256 fee = (creatorStake * sv.feePercentage) / 100;
         feeCollected += fee;
+        uint256 totalCreatorStake = creatorStake - 
 
         // total expected from msg.value
         uint256 total = _reward + creatorStake + fee;
@@ -523,6 +526,7 @@ contract TrustlessTeamProtocol is
         Tasks[taskId] = Task({
             taskId: taskId,
             status: TaskStatus.Active,
+            value: getProjectValueCategory(Value),
             creator: msg.sender,
             member: address(0),
             title: Title,
@@ -867,58 +871,6 @@ contract TrustlessTeamProtocol is
     }
 
     /**
-     * @notice Creator approves submission, triggering payout allocations (pull model)
-     */
-    function approveTask(uint256 taskId)
-        public
-        taskExists(taskId)
-        onlyTaskCreator(taskId)
-        nonReentrant
-        whenNotPaused
-    {
-        reputationPoint storage rp = reputationPoints;
-        Task storage t = Tasks[taskId];
-        TaskSubmit storage s = TaskSubmits[taskId];
-
-        if (t.status != TaskStatus.InProgres) revert TaskNotOpen();
-        if (s.status != SubmitStatus.Pending) revert TaskNotSubmittedYet();
-        require(!t.isRewardClaimed, "already claimed");
-        require(s.sender != address(0), "no submission");
-
-        uint256 memberGet = t.reward + t.memberStake;
-        uint256 creatorGet = t.creatorStake;
-
-        // credit withdrawable balances (pull model)
-        withdrawable[t.member] += memberGet;
-        withdrawable[t.creator] += creatorGet;
-
-        // unlock stakes and mark claimed
-        t.isMemberStakeLocked = false;
-        t.isCreatorStakeLocked = false;
-        t.isRewardClaimed = true;
-        t.status = TaskStatus.Completed;
-
-        // reputations updates
-        if (Users[t.member].isRegistered) Users[t.member].reputation += rp.taskAcceptMember;
-
-        if (Users[t.creator].isRegistered) Users[t.creator].reputation += rp.taskAcceptCreator;
-
-        // counters
-        Users[t.creator].totalTasksCompleted++;
-        Users[t.member].totalTasksCompleted++;
-
-        // clear submission slot
-        s.githubURL = "";
-        s.sender = address(0);
-        s.note = "";
-        s.status = SubmitStatus.Accepted;
-        s.revisionTime = 0;
-        s.newDeadline = 0;
-
-        emit TaskApproved(taskId);
-    }
-
-    /**
      * @notice Creator requests revision for a submission
      * @param additionalDeadlineHours how many hours to extend from now
      */
@@ -1038,12 +990,162 @@ contract TrustlessTeamProtocol is
         emit Withdrawal(msg.sender, amount);
     }
 
+//---------------------------------------------------- INTERNAL & HELPERS -------------------------------------------------------
+
+    // =============================================================
+    // READ HELPERS
+    // =============================================================
+
+    function getJoinRequests(uint256 taskId) external view onlyRegistered returns (JoinRequest[] memory) {
+        return joinRequests[taskId];
+    }
+
+    function getTaskSubmit(uint256 taskId) external view onlyRegistered returns (TaskSubmit memory) {
+        return TaskSubmits[taskId];
+    }
+
     /**
      * @notice Get caller withdrawable amount
      */
     function getWithdrawableAmount() external view onlyRegistered returns (uint256) {
         return withdrawable[msg.sender];
     }
+
+    // =============================================================
+    // INTERNAL HELPERS
+    // =============================================================
+
+    /**
+     * @notice Read stored reputation for a given address
+     * @dev Fallback to myPoint mapping if Users entry not present (backwards compatibility)
+     */
+    function _seeReputation(address who) internal view returns (uint32) {
+        if (Users[who].isRegistered) {
+            return Users[who].reputation;
+        } else {
+            return 0;
+        }
+    }
+
+    /**
+     * @notice Creator approves submission, triggering payout allocations (pull model)
+     */
+    function approveTask(uint256 taskId)
+        public
+        taskExists(taskId)
+        onlyTaskCreator(taskId)
+        nonReentrant
+        whenNotPaused
+    {
+        reputationPoint storage rp = reputationPoints;
+        Task storage t = Tasks[taskId];
+        TaskSubmit storage s = TaskSubmits[taskId];
+
+        if (t.status != TaskStatus.InProgres) revert TaskNotOpen();
+        if (s.status != SubmitStatus.Pending) revert TaskNotSubmittedYet();
+        require(!t.isRewardClaimed, "already claimed");
+        require(s.sender != address(0), "no submission");
+
+        uint256 memberGet = t.reward + t.memberStake;
+        uint256 creatorGet = t.creatorStake;
+
+        // credit withdrawable balances (pull model)
+        withdrawable[t.member] += memberGet;
+        withdrawable[t.creator] += creatorGet;
+
+        // unlock stakes and mark claimed
+        t.isMemberStakeLocked = false;
+        t.isCreatorStakeLocked = false;
+        t.isRewardClaimed = true;
+        t.status = TaskStatus.Completed;
+
+        // reputations updates
+        if (Users[t.member].isRegistered) Users[t.member].reputation += rp.taskAcceptMember;
+
+        if (Users[t.creator].isRegistered) Users[t.creator].reputation += rp.taskAcceptCreator;
+
+        // counters
+        Users[t.creator].totalTasksCompleted++;
+        Users[t.member].totalTasksCompleted++;
+
+        // clear submission slot
+        s.githubURL = "";
+        s.sender = address(0);
+        s.note = "";
+        s.status = SubmitStatus.Accepted;
+        s.revisionTime = 0;
+        s.newDeadline = 0;
+
+        emit TaskApproved(taskId);
+    }
+
+    /**
+     * @notice Counter for penalty complement (100 - NegPenalty)
+     */
+    function _CounterPenalty() internal view returns (uint32) {
+        StateVar storage sv = StateVars;
+        return uint32(100) - sv.NegPenalty;
+    }
+
+    /**
+     * @notice Reset cancel request slot for a task
+     */
+    function _resetCancelRequest(uint256 taskId) internal {
+        CancelRequest storage cr = CancelRequests[taskId];
+        cr.requester = address(0);
+        cr.counterparty = address(0);
+        cr.expiry = 0;
+        cr.status = TaskRejectRequest.None;
+        cr.reason = "";
+    }
+
+    // =============================================================
+    // STAKE CALCULATIONS
+    // =============================================================
+
+    /**
+     * @notice Calculate member stake required for a task for an applicant
+     * @param taskId id of task
+     * @param applicant address of applicant
+     * @return memberStake calculated in wei
+     */
+    function getMemberRequiredStakeFor(uint256 taskId, address applicant) public view returns (uint256) {
+        Task storage t = Tasks[taskId];
+        uint256 hoursInput = uint256(t.deadlineHours);
+        // formula: reward * (hours+1) * algo / ((repApplicant+1)*(repCreator+1)*(maxRevision+1))
+        // uses reward in wei
+        uint256 memberStake = (t.reward * (hoursInput + 1) * algoConstant) /
+            (uint256(_seeReputation(applicant) + 1) * uint256(_seeReputation(t.creator) + 1) * uint256(t.maxRevision + 1));
+        return memberStake;
+    }
+
+    /**
+     * @notice Calculate creator stake required (explicit)
+     * @param creator creator address (for reputation)
+     * @param rewardWei reward in wei
+     * @param maxRevision allowed revisions
+     * @param deadlineHours configured hours
+     * @return creatorStake in wei
+     */
+    function getCreatorRequiredStakeFor(
+        address creator,
+        uint256 rewardWei,
+        uint8 maxRevision,
+        uint256 deadlineHours
+    ) public view returns (uint256) {
+        uint256 creatorStake = (rewardWei * (uint256(maxRevision) + 1) * algoConstant) /
+            (uint256(_seeReputation(creator) + 1) * (deadlineHours + 1));
+        return creatorStake;
+    }
+
+    /**
+     * @notice Backwards-compatible wrapper using msg.sender as applicant
+     */
+    function getMemberRequiredStake(uint256 taskId) public view returns (uint256) {
+        return getMemberRequiredStakeFor(taskId, msg.sender);
+    }
+
+//---------------------------------------------------- ADMIN & OWNER ------------------------------------------------------------
 
     // =============================================================
     // SYSTEM / ADMIN FUNCTIONS (employees & owner)
@@ -1079,54 +1181,48 @@ contract TrustlessTeamProtocol is
         emit SystemWalletChanged(_NewsystemWallet);
     }
 
-    /**
-     * @notice Set cooldown hours for cancel negotiation.
-     */
-    function setCooldownHour(uint64 newCooldown) external onlyEmployes whenNotPaused {
-        require(newCooldown > 0, "can't be 0");
-        StateVars.cooldownInHour = newCooldown;
-        emit CooldownChanged(newCooldown);
+    // =============================================================
+    // Struct StateVAR
+    // =============================================================
+
+    function setStateVars(
+        uint64 _cooldownInHour,
+        uint32 _minRevisionTimeInHour, // stored in hours
+        uint32 _NegPenalty, // percent (0..100)
+        uint32 _maxReward, // input unit (ether)
+        uint32 _feePercentage, // percent for creatorStake
+        uint32 _maxStake, // upper limit for stake (business unit)
+        uint32 _maxRevision
+    ) external onlyEmployes whenNotPaused {
+        if (_maxStake > Stakes.ultraHigh) revert InvalidMaxStakeAmount();
+        StateVars = StateVar({
+            cooldownInHour : _cooldownInHour,
+            minRevisionTimeInHour : _minRevisionTimeInHour,
+            NegPenalty : _NegPenalty,
+            maxReward : _maxReward,
+            feePercentage : _feePercentage,
+            maxStake : _maxStake,
+            maxRevision : _maxRevision
+        });
+        emit StateVarsChanged(_cooldownInHour, _minRevisionTimeInHour, _NegPenalty, _maxReward, _feePercentage, _maxStake, _maxRevision);
     }
 
-    /**
-     * @notice Set max stake allowed.
-     */
-    function setMaxStake(uint32 newMaxStake) external onlyEmployes whenNotPaused {
-        require(newMaxStake > 0, "can't be 0");
-        StateVars.maxStake = newMaxStake;
-        emit MaxStakeChanged(newMaxStake);
+    function setComponentWeightPercentage(
+        uint64 _rewardScore,
+        uint64 _reputationScore,
+        uint64 _deadlineScore,
+        uint64 _revisionScore
+    ) external onlyEmployes whenNotPaused{
+        uint64 Total = _rewardScore + _reputationScore + _deadlineScore + _revisionScore;
+        if (Total > 10) revert TotalMustBe10();
+        if (Total != 10) revert TotalMustBe10();
+        componentWeightPercentages = componentWeightPercentage({
+            rewardScore : _rewardScore,
+            reputationScore : _reputationScore,
+            deadlineScore : _deadlineScore,
+            revisionScore : _revisionScore
+        });
     }
-
-    /**
-     * @notice Set negative penalty percent (0..100)
-     */
-    function setNegativePenalty(uint32 newNegPenalty) external onlyEmployes whenNotPaused {
-        require(newNegPenalty <= 100, "neg penalty must be <= 100");
-        require(newNegPenalty > 0,"neg penalty can't be 0");
-        StateVars.NegPenalty = newNegPenalty;
-    }
-
-    /**
-     * @notice Set minimum revision time in hours
-     */
-    function setMinRevisionTimeInHour(uint32 _minRevisionTimeInHour) external onlyEmployes whenNotPaused {
-        StateVars.minRevisionTimeInHour = _minRevisionTimeInHour;
-    }
-
-    /**
-     * @notice Set fee percentage applied to creatorStake
-     */
-    function setfeePercentage(uint32 newfeePercentage) external onlyEmployes whenNotPaused {
-        StateVars.feePercentage = newfeePercentage;
-    }
-
-    /**
-     * @notice Set maximum reward (input unit = ether)
-     */
-    function setMaxReward(uint32 _maxReward) external onlyEmployes whenNotPaused {
-        StateVars.maxReward = _maxReward;
-    }
-
     /**
      * @notice Set reputation penalty/award points in one call
      */
@@ -1150,6 +1246,43 @@ contract TrustlessTeamProtocol is
         reputationPoints.deadlineHitMember = newdeadlineHitMember;
     }
 
+    function setStakeAmount(
+        uint64 _low,
+        uint64 _midLow,
+        uint32 _mid,
+        uint32 _midHigh,
+        uint32 _high,
+        uint32 _ultraHigh
+    ) external onlyEmployes whenNotPaused {
+        stakeAmounts = stakeAmount({
+            low : _low,
+            midLow : _midLow,
+            mid : _mid,
+            midHigh : _midHigh,
+            high : _high,
+            ultraHigh : _ultraHigh
+        });
+    }
+
+    function setCreatoStakeAmount(
+        uint256 _low,
+        uint256 _midleLow,
+        uint256 _midle,
+        uint256 _midleHigh,
+        uint256 _high,
+        uint256 _ultraHigh
+    ) external onlyEmployes whenNotPaused {
+        Stakes = Stake ({
+            low : _low,
+            midleLow : _midleLow,
+            midle : _midle,
+            midleHigh : _midleHigh,
+            high : _high,
+            ultraHigh : _ultraHigh
+        });
+    }
+
+
     function pause() external onlyEmployes {
     _pause();
     emit ContractPaused(msg.sender);
@@ -1157,18 +1290,6 @@ contract TrustlessTeamProtocol is
     function unpause() external onlyEmployes {
     _unpause();
     emit ContractUnpaused(msg.sender);
-    }
-
-    // =============================================================
-    // READ HELPERS
-    // =============================================================
-
-    function getJoinRequests(uint256 taskId) external view onlyRegistered returns (JoinRequest[] memory) {
-        return joinRequests[taskId];
-    }
-
-    function getTaskSubmit(uint256 taskId) external view onlyRegistered returns (TaskSubmit memory) {
-        return TaskSubmits[taskId];
     }
 
     // =============================================================
