@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import "../Logic/AccesControl.sol";
+import "../Pipe/StateVarPipes.sol";
+import "../Pipe/AccesControlPipes.sol";
+import "../system/utils/StakeUtils.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
@@ -24,6 +26,7 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 contract TrustlessTeamProtocol is
     Initializable,
     AccesControl,
+    stakeUtils,
     ReentrancyGuardUpgradeable,
     PausableUpgradeable,
     UUPSUpgradeable
@@ -34,7 +37,6 @@ contract TrustlessTeamProtocol is
 
     /// @notice Task lifecycle status
     enum TaskStatus { NonExistent, Active, OpenRegistration, InProgres, CancelRequested, Completed, Cancelled }
-    enum TaskValue {Low, MidleLow,  Midle, MidleHigh, High, UltraHigh}
 
     /// @notice Join/submission state per user relative to a task
     enum UserTask { None, Request, Accepted, Submitted, Revision, Cancelled }
@@ -44,44 +46,7 @@ contract TrustlessTeamProtocol is
 
     /// @notice Submission status
     enum SubmitStatus { NoneStatus, Pending, RevisionNeeded, Accepted }
-
-    function getProjectValueCategory(uint256 _value) internal view returns (TaskValue) {
-        if (_value <= Stakes.low) {
-            return TaskValue.Low;
-        } else if (_value <= Stakes.midleLow) {
-            return TaskValue.MidleLow;
-        } else if (_value <= Stakes.midle) {
-            return TaskValue.Midle;
-        } else if (_value <= Stakes.midleHigh) {
-            return TaskValue.MidleHigh;
-        } else if (_value <= Stakes.high) {
-            return TaskValue.High;
-        } else {
-            return TaskValue.UltraHigh;
-        }
-    }
-
-
-function getCreatorStake(uint256 __value) internal view returns (uint256) {
-    stakeAmount storage sa = stakeAmounts;
-
-    TaskValue category = getProjectValueCategory(__value);
-
-    if (category == TaskValue.Low) {
-        return sa.low;
-    } else if (category == TaskValue.MidleLow) {
-        return sa.midLow;
-    } else if (category == TaskValue.Midle) {
-        return sa.mid;
-    } else if (category == TaskValue.MidleHigh) {
-        return sa.midHigh;
-    } else if (category == TaskValue.High) {
-        return sa.high;
-    } else {
-        return sa.ultraHigh;
-    }
-}
-
+//
     // =============================================================
     // STRUCTS
     // =============================================================
@@ -147,55 +112,6 @@ function getCreatorStake(uint256 __value) internal view returns (uint256) {
         uint256 newDeadline; // timestamp
     }
 
-    //State Variable struct
-
-    struct componentWeightPercentage {
-        uint64 rewardScore;
-        uint64 reputationScore;
-        uint64 deadlineScore;
-        uint64 revisionScore;
-    }
-
-    struct stakeAmount {
-        uint64 low;
-        uint64 midLow;
-        uint32 mid;
-        uint32 midHigh;
-        uint32 high;
-        uint32 ultraHigh;
-    }
-
-    /// @notice Reputation and penalty configuration
-    struct reputationPoint {
-        uint32 CancelByMe;
-        uint32 requestCancel;
-        uint32 respondCancel;
-        uint32 revision;
-        uint32 taskAcceptCreator;
-        uint32 taskAcceptMember;
-        uint32 deadlineHitCreator;
-        uint32 deadlineHitMember;
-    }
-
-    /// @notice global state variables configuration
-    struct StateVar {
-        uint64 cooldownInHour;
-        uint32 minRevisionTimeInHour; // stored in hours
-        uint32 NegPenalty; // percent (0..100)
-        uint32 maxReward; // input unit (ether)
-        uint32 feePercentage; // percent for creatorStake
-        uint32 maxStake; // upper limit for stake (business unit)
-        uint32 maxRevision;
-    }
-
-    struct Stake {
-        uint256 low;
-        uint256 midleLow;
-        uint256 midle;
-        uint256 midleHigh;
-        uint256 high;
-        uint256 ultraHigh;
-    }
     // =============================================================
     // STATE
     // =============================================================
@@ -212,21 +128,15 @@ function getCreatorStake(uint256 __value) internal view returns (uint256) {
     mapping(uint256 => JoinRequest[]) public joinRequests;
     mapping(uint256 => CancelRequest) internal CancelRequests;
 
-    // Config / system
-    reputationPoint public reputationPoints;
-    StateVar public StateVars;
-    Stake public Stakes;
-    componentWeightPercentage public componentWeightPercentages;
-    stakeAmount public stakeAmounts;
-
     uint256 public taskCounter;
     uint256 internal feeCollected;
-    uint256 public algoConstant; // scaling factor used in stake formula
+    uint256 public memberStakePercentReward;
     address payable public systemWallet;
 
     // Storage gap for upgradeability
     uint256[40] private ___gap;
 
+//
     // =============================================================
     // EVENTS
     // =============================================================
@@ -252,17 +162,8 @@ function getCreatorStake(uint256 __value) internal view returns (uint256) {
     event DeadlineTriggered(uint256 indexed taskId);
 
     // Payments / system
-    event StateVarsChanged(
-        uint64 NewCooldownInHour,
-        uint32 NewMinRevisionTimeInHour,
-        uint32 NewNegPenalty, 
-        uint32 NewMaxReward, 
-        uint32 NewFeePercentage, 
-        uint32 NewMaxStake,
-        uint32 NewMaxRevision
-    );
     event Withdrawal(address indexed user, uint256 amount);
-    event AlgoConstantChanged(uint256 newK);
+    event memberStakePercentRewardChanged(uint256 NewmemberStakePercentReward);
     event SystemWalletChanged(address newWallet);
     event FeeWithdrawnToSystemWallet(uint256 amount);
     event ContractPaused(address indexed caller);
@@ -290,6 +191,10 @@ function getCreatorStake(uint256 __value) internal view returns (uint256) {
     error TooManyRevisions();
     error InvalidRewardAmount();
     error InvalidReason();
+    error RewardOverflow();
+    error ValueMismatch();
+    error StakeOverflow();
+    error StakeMismatch();
 
     //system
     error InvalidMaxStakeAmount();
@@ -332,45 +237,12 @@ function getCreatorStake(uint256 __value) internal view returns (uint256) {
     // INITIALIZER
     // =============================================================
 
-    /**
-     * @notice Initialize protocol parameters and reputation points.
-     * @dev Must be called once after deployment (proxy initialize).
-     * @param _employeeAssignment address of central employee assignment (set in AccesControl)
-     * @param _systemWallet payable address for fee withdrawals
-     * @param _cooldownInHour cooldown window in hours for cancel negotiation
-     * @param _maxStake maximum allowed stake (business-defined unit)
-     * @param _NegPenalty negative penalty percentage (0..100)
-     * @param _maxReward max reward (input unit, ether)
-     * @param _minRevisionTimeInHour minimum hours for revision deadlines
-     * @param _feePercentage fee percent taken from creatorStake
-     * @param _maxRevision maximum allowed revisions
-     * @param _CancelByMe reputation penalty points
-     * @param _requestCancel reputation penalty points
-     * @param _respondCancel reputation penalty points
-     * @param _revision reputation penalty points
-     * @param _taskAcceptCreator reputation reward points
-     * @param _taskAcceptMember reputation reward points
-     * @param _deadlineHitCreator reputation penalty points
-     * @param _deadlineHitMember reputation penalty points
-     */
+
     function initialize(
         address _employeeAssignment,
         address payable _systemWallet,
-        uint64 _cooldownInHour,
-        uint32 _maxStake,
-        uint32 _NegPenalty,
-        uint32 _maxReward,
-        uint32 _minRevisionTimeInHour,
-        uint32 _feePercentage,
-        uint32 _maxRevision,
-        uint32 _CancelByMe,
-        uint32 _requestCancel,
-        uint32 _respondCancel,
-        uint32 _revision,
-        uint32 _taskAcceptCreator,
-        uint32 _taskAcceptMember,
-        uint32 _deadlineHitCreator,
-        uint32 _deadlineHitMember
+        address _stateVar,
+        uint256 _initialmemberStakePercentReward
     ) public initializer {
         // validate
         zero_Address(_systemWallet);
@@ -383,33 +255,13 @@ function getCreatorStake(uint256 __value) internal view returns (uint256) {
 
         // set employeeAssignment (AccesControl expects this)
         employeeAssignment = IEmployeeAssignment(_employeeAssignment);
+        stateVar = IStateVar(_stateVar);
 
         // system config
         systemWallet = _systemWallet;
-        algoConstant = 1e3; // conservative default
         taskCounter = 0;
         feeCollected = 0;
-
-        StateVars = StateVar({
-            cooldownInHour: _cooldownInHour,
-            minRevisionTimeInHour: _minRevisionTimeInHour,
-            NegPenalty: _NegPenalty,
-            maxReward: _maxReward,
-            feePercentage: _feePercentage,
-            maxStake: _maxStake,
-            maxRevision: _maxRevision
-        });
-
-        reputationPoints = reputationPoint({
-            CancelByMe: _CancelByMe,
-            requestCancel: _requestCancel,
-            respondCancel: _respondCancel,
-            revision: _revision,
-            taskAcceptCreator: _taskAcceptCreator,
-            taskAcceptMember: _taskAcceptMember,
-            deadlineHitCreator: _deadlineHitCreator,
-            deadlineHitMember: _deadlineHitMember
-        });
+        memberStakePercentReward = _initialmemberStakePercentReward;
     }
 
 //  // =============================================================
@@ -459,85 +311,72 @@ function getCreatorStake(uint256 __value) internal view returns (uint256) {
         delete Users[msg.sender];
         return "Unregister Successfully";
     }
-
-    /**
-     * @notice Get caller's stored user data
-     */
-    function getMyData() external view onlyRegistered returns (User memory) {
-        return Users[msg.sender];
-    }
 //
     // =============================================================
     // TASK LIFECYCLE
     // =============================================================
 
-    /**
-     * @notice Create a new task and fund reward + creator stake + fee via msg.value
-     * @param Title task title
-     * @param GithubURL task reference url
-     * @param _DeadlineHours configured deadline in hours (used when member accepted)
-     * @param maximumRevision allowed number of revisions
-     * @param RewardEther reward amount in ETH (uint representing whole Ethers)
-     *
-     * @dev msg.value must equal (_rewardWei + creatorStake + fee)
-     */
+
     function createTask(
         string memory Title,
         string memory GithubURL,
-        uint32 _DeadlineHours,
-        uint8 maximumRevision,
-        uint256 RewardEther
+        uint32 DeadlineHours,
+        uint8 MaximumRevision,
+        uint256 RewardEther,
+        uint256 CreatorStakeEther
+        //,uint256 creatorStake
     ) external payable whenNotPaused onlyRegistered onlyUser callerZeroAddr {
-        StateVar storage sv = StateVars;
-        componentWeightPercentage storage wp = componentWeightPercentages;
         // increment task id first (1-indexed)
         taskCounter++;
         uint256 taskId = taskCounter;
 
-        // reward in wei
+        // reward in ether
         uint256 _reward = RewardEther * 1 ether;
+        if (_reward / 1 ether != RewardEther) revert RewardOverflow();
+
+        uint256 _CreatorStake = getCreatorStake(DeadlineHours, MaximumRevision, _reward);
+
+        uint256 _stake = CreatorStakeEther * 1 ether;
+        if (_stake / 1 ether != CreatorStakeEther) revert StakeOverflow();
+        if (_stake != _CreatorStake) revert StakeMismatch();
 
         // validations
         if (bytes(Title).length == 0) revert InvalidTitle();
         if (bytes(GithubURL).length == 0) revert InvalidGithubURL();
-        if (_DeadlineHours < sv.minRevisionTimeInHour) revert InvalidDeadline();
-        if (maximumRevision > sv.maxRevision) revert TooManyRevisions();
+        if (___getMinRevisionTimeInHour() < DeadlineHours) revert InvalidDeadline();
+        if (___getMaxRevision() < MaximumRevision) revert TooManyRevisions();
         if (RewardEther == 0) revert InvalidRewardAmount();
-        if (RewardEther > sv.maxReward) revert InvalidRewardAmount();
-
-        uint256 Value = ((wp.rewardScore / 10) * RewardEther) + ((wp.reputationScore / 10) * _seeReputation(msg.sender)) + 
-                        ((wp.deadlineScore / 10) * _DeadlineHours) + ((wp.revisionScore / 10) * maximumRevision);
-
-
-        // compute creator stake
-        uint256 creatorStake = getCreatorStake(Value);
-        if (sv.maxStake < creatorStake) revert StakeHitLimit();
+        if (RewardEther > ___getMaxReward()) revert InvalidRewardAmount();
+        if (___getMaxStake() < _CreatorStake) revert StakeHitLimit();
 
         // fee (protocol) taken from creatorStake (business decision)
-        uint256 fee = (creatorStake * sv.feePercentage) / 100;
-        feeCollected += fee;
-        uint256 totalCreatorStake = creatorStake - 
+        // fee (protocol) taken from creatorStake (business decision)
+        uint256 totalFee = (_CreatorStake * ___getFeePercentage()) / 100;
+        //if (__creatorStake != creatorStake) revert ValueMismatch();
+        uint256 creatorStakeNet = _CreatorStake - totalFee;
 
-        // total expected from msg.value
-        uint256 total = _reward + creatorStake + fee;
-        if (msg.value != total) revert InsufficientStake();
+        feeCollected += totalFee;
+
+        uint256 totalRequired = _reward + creatorStakeNet;
+        if (msg.value != totalRequired) revert InsufficientStake();
+
 
         // store task (deadlineAt = 0 until member accepted)
         Tasks[taskId] = Task({
             taskId: taskId,
             status: TaskStatus.Active,
-            value: getProjectValueCategory(Value),
+            value: ___getProjectValueCategory(__getProjectValueNum(DeadlineHours, MaximumRevision, RewardEther, msg.sender)),
             creator: msg.sender,
             member: address(0),
             title: Title,
             githubURL: GithubURL,
             reward: _reward,
-            deadlineHours: _DeadlineHours,
+            deadlineHours: DeadlineHours,
             deadlineAt: 0,
             createdAt: block.timestamp,
-            creatorStake: creatorStake,
+            creatorStake: creatorStakeNet,
             memberStake: 0,
-            maxRevision: maximumRevision,
+            maxRevision: MaximumRevision,
             isMemberStakeLocked: false,
             isCreatorStakeLocked: true,
             isRewardClaimed: false,
@@ -547,7 +386,7 @@ function getCreatorStake(uint256 __value) internal view returns (uint256) {
         // counters
         Users[msg.sender].totalTasksCreated++;
 
-        emit TaskCreated(Title, taskId, msg.sender, _reward, creatorStake);
+        emit TaskCreated(Title, taskId, msg.sender, _reward, creatorStakeNet);
     }
 
     /**
@@ -575,7 +414,6 @@ function getCreatorStake(uint256 __value) internal view returns (uint256) {
      * @dev msg.value must equal required member stake for applicant
      */
     function requestJoinTask(uint256 taskId) external payable taskExists(taskId) whenNotPaused onlyRegistered onlyUser callerZeroAddr {
-        StateVar storage sv = StateVars;
         Task storage t = Tasks[taskId];
         JoinRequest[] storage reqs = joinRequests[taskId];
 
@@ -588,8 +426,8 @@ function getCreatorStake(uint256 __value) internal view returns (uint256) {
         if (msg.sender == t.creator) revert TaskNotOpen();
 
         // compute stake
-        uint256 memberStake = getMemberRequiredStakeFor(taskId, msg.sender);
-        if (sv.maxStake < memberStake) revert StakeHitLimit();
+        uint256 memberStake = getMemberRequiredStake(taskId);
+        if (___getMaxStake() < memberStake) revert StakeHitLimit();
         if (msg.value != memberStake) revert InsufficientStake();
 
         // push request
@@ -653,7 +491,7 @@ function getCreatorStake(uint256 __value) internal view returns (uint256) {
         require(found, "request not found");
         emit JoinRejected(taskId, _applicant);
     }
-
+//
     // =============================================================
     // CANCEL / NEGOTIATION
     // =============================================================
@@ -664,10 +502,8 @@ function getCreatorStake(uint256 __value) internal view returns (uint256) {
      * @param reason textual reason
      */
     function requestCancel(uint256 taskId, string calldata reason) external whenNotPaused onlyRegistered onlyUser taskExists(taskId) {
-        StateVar storage sv = StateVars;
         Task storage t = Tasks[taskId];
         CancelRequest storage cr = CancelRequests[taskId];
-        reputationPoint storage rp = reputationPoints;
 
         if (cr.status == TaskRejectRequest.Pending) revert CancelAlreadyRequested();
         if (msg.sender != t.creator && msg.sender != t.member) revert NotTaskMember();
@@ -677,17 +513,17 @@ function getCreatorStake(uint256 __value) internal view returns (uint256) {
         address counterparty = (msg.sender == t.creator) ? t.member : t.creator;
         cr.requester = msg.sender;
         cr.counterparty = counterparty;
-        cr.expiry = block.timestamp + (sv.cooldownInHour * 1 hours);
+        cr.expiry = block.timestamp + (___getCooldownInHour() * 1 hours);
         cr.status = TaskRejectRequest.Pending;
         cr.reason = reason;
         t.status = TaskStatus.CancelRequested;
 
         // penalize requester reputation points
         if (Users[msg.sender].isRegistered) {
-            if (Users[msg.sender].reputation < rp.requestCancel) Users[msg.sender].reputation = 0;
-            else Users[msg.sender].reputation -= rp.requestCancel;
+            if (Users[msg.sender].reputation < ___getRequestCancel()) Users[msg.sender].reputation = 0;
+            else Users[msg.sender].reputation -= ___getRequestCancel();
         }
-        emit CancelRequestedEvent(taskId, msg.sender, reason, (sv.cooldownInHour * 1 hours));
+        emit CancelRequestedEvent(taskId, msg.sender, reason, (___getCooldownInHour() * 1 hours));
     }
 
     /**
@@ -698,7 +534,6 @@ function getCreatorStake(uint256 __value) internal view returns (uint256) {
     function respondCancel(uint256 taskId, bool approve) external taskExists(taskId) nonReentrant onlyUser onlyRegistered whenNotPaused {
         Task storage t = Tasks[taskId];
         CancelRequest storage cr = CancelRequests[taskId];
-        reputationPoint storage rp = reputationPoints;
 
         if (cr.status != TaskRejectRequest.Pending) revert NoActiveCancelRequest();
         if (msg.sender != cr.counterparty) revert NotCounterparty();
@@ -706,7 +541,7 @@ function getCreatorStake(uint256 __value) internal view returns (uint256) {
 
         // expired negotiation
         if (block.timestamp > cr.expiry) {
-            _resetCancelRequest(taskId);
+            __resetCancelRequest(taskId);
             t.status = TaskStatus.InProgres;
             emit CancelResponded(taskId, false);
             return;
@@ -714,7 +549,7 @@ function getCreatorStake(uint256 __value) internal view returns (uint256) {
 
         // not approved: reset state
         if (!approve) {
-            _resetCancelRequest(taskId);
+            __resetCancelRequest(taskId);
             t.status = TaskStatus.InProgres;
             emit CancelResponded(taskId, false);
             return;
@@ -732,12 +567,12 @@ function getCreatorStake(uint256 __value) internal view returns (uint256) {
         }
 
         t.status = TaskStatus.Cancelled;
-        _resetCancelRequest(taskId);
+        __resetCancelRequest(taskId);
 
         // apply reputation penalty to responder (msg.sender)
         if (Users[msg.sender].isRegistered) {
-            if (Users[msg.sender].reputation < rp.respondCancel) Users[msg.sender].reputation = 0;
-            else Users[msg.sender].reputation -= rp.respondCancel;
+            if (Users[msg.sender].reputation < ___getRespondCancel()) Users[msg.sender].reputation = 0;
+            else Users[msg.sender].reputation -= ___getRespondCancel();
         }
 
         // update counters
@@ -754,8 +589,6 @@ function getCreatorStake(uint256 __value) internal view returns (uint256) {
      * @dev Penalty distribution: member cancels => part of memberStake to creator; creator cancels => part of creatorStake to member
      */
     function cancelByMe(uint256 taskId) external taskExists(taskId) nonReentrant onlyUser whenNotPaused {
-        StateVar storage sv = StateVars;
-        reputationPoint storage rp = reputationPoints;
         Task storage t = Tasks[taskId];
 
         if (msg.sender != t.creator && msg.sender != t.member) revert NotTaskMember();
@@ -764,8 +597,8 @@ function getCreatorStake(uint256 __value) internal view returns (uint256) {
 
         if (msg.sender == t.member) {
             // member cancels: member loses portion of their stake to creator
-            uint256 penaltyToCreator = (t.memberStake * sv.NegPenalty) / 100;
-            uint256 memberReturn = (t.memberStake * _CounterPenalty()) / 100;
+            uint256 penaltyToCreator = (t.memberStake * ___getNegPenalty()) / 100;
+            uint256 memberReturn = (t.memberStake * __CounterPenalty()) / 100;
 
             // credit amounts
             withdrawable[t.creator] += t.creatorStake + t.reward + penaltyToCreator;
@@ -778,8 +611,8 @@ function getCreatorStake(uint256 __value) internal view returns (uint256) {
             // creator cancels: creator loses portion of creatorStake to member
             if (t.member == address(0)) revert CancelOnlyWhenMemberAssigned();
 
-            uint256 penaltyToMember = (t.creatorStake * sv.NegPenalty) / 100;
-            uint256 creatorReturn = (t.creatorStake * _CounterPenalty()) / 100 + t.reward;
+            uint256 penaltyToMember = (t.creatorStake * ___getNegPenalty()) / 100;
+            uint256 creatorReturn = (t.creatorStake * __CounterPenalty()) / 100 + t.reward;
 
             withdrawable[t.member] += t.memberStake + penaltyToMember;
             withdrawable[t.creator] += creatorReturn;
@@ -792,8 +625,8 @@ function getCreatorStake(uint256 __value) internal view returns (uint256) {
 
         // apply reputation penalty to initiator
         if (Users[msg.sender].isRegistered) {
-            if (Users[msg.sender].reputation < rp.CancelByMe) Users[msg.sender].reputation = 0;
-            else Users[msg.sender].reputation -= rp.CancelByMe;
+            if (Users[msg.sender].reputation < ___getCancelByMe()) Users[msg.sender].reputation = 0;
+            else Users[msg.sender].reputation -= ___getCancelByMe();
         }
 
         // update counters
@@ -850,7 +683,7 @@ function getCreatorStake(uint256 __value) internal view returns (uint256) {
         if (t.member != msg.sender) revert NotTaskMember();
         if (s.status != SubmitStatus.RevisionNeeded) revert TaskNotOpen();
         if (s.revisionTime > t.maxRevision) {
-        approveTask(taskId);
+        __approveTask(taskId);
         return;
         }
         require(s.sender != address(0), "no submission");
@@ -863,7 +696,7 @@ function getCreatorStake(uint256 __value) internal view returns (uint256) {
 
         if (s.revisionTime > t.maxRevision) {
             // auto-approve if revision exceeded limit
-            approveTask(taskId);
+            __approveTask(taskId);
             return;
         }
 
@@ -880,14 +713,12 @@ function getCreatorStake(uint256 __value) internal view returns (uint256) {
         onlyTaskCreator(taskId)
         whenNotPaused
     {
-        StateVar storage sv = StateVars;
         Task storage t = Tasks[taskId];
         TaskSubmit storage s = TaskSubmits[taskId];
-        reputationPoint storage rp = reputationPoints;
 
         if (t.member == address(0)) revert CancelOnlyWhenMemberAssigned();
         require(s.status == SubmitStatus.Pending, "not pending");
-        require(additionalDeadlineHours >= sv.minRevisionTimeInHour, "please give more time");
+        require(additionalDeadlineHours >= ___getMinRevisionTimeInHour(), "please give more time");
 
         uint256 additionalSeconds = (additionalDeadlineHours * 1 hours);
 
@@ -898,18 +729,18 @@ function getCreatorStake(uint256 __value) internal view returns (uint256) {
 
         if (s.revisionTime > t.maxRevision) {
             // too many revisions => auto approve
-            approveTask(taskId);
+            __approveTask(taskId);
             return;
         }
 
         // penalize both parties slightly for revisions (business rule)
         if (Users[t.member].isRegistered) {
-            if (Users[t.member].reputation < rp.revision) Users[t.member].reputation = 0;
-            else Users[t.member].reputation -= rp.revision;
+            if (Users[t.member].reputation < ___getRevisionPenalty() ) Users[t.member].reputation = 0;
+            else Users[t.member].reputation -= ___getRevisionPenalty() ;
         }
         if (Users[t.creator].isRegistered) {
-            if (Users[t.creator].reputation < rp.revision) Users[t.creator].reputation = 0;
-            else Users[t.creator].reputation -= rp.revision;
+            if (Users[t.creator].reputation < ___getRevisionPenalty() ) Users[t.creator].reputation = 0;
+            else Users[t.creator].reputation -= ___getRevisionPenalty() ;
         }
 
         emit RevisionRequested(taskId, s.revisionTime, t.deadlineAt);
@@ -924,9 +755,7 @@ function getCreatorStake(uint256 __value) internal view returns (uint256) {
      * @dev Distributes stakes depending on whether the member submitted on time.
      */
     function triggerDeadline(uint256 taskId) public taskExists(taskId) whenNotPaused {
-        StateVar storage sv = StateVars;
         Task storage t = Tasks[taskId];
-        reputationPoint storage rp = reputationPoints;
 
         if (t.status != TaskStatus.InProgres) revert TaskNotOpen();
         if (t.deadlineAt == 0) return;
@@ -934,8 +763,8 @@ function getCreatorStake(uint256 __value) internal view returns (uint256) {
 
         // if member exists and stake present, split memberStake according to NegPenalty
         if (t.member != address(0) && t.memberStake > 0) {
-            uint256 toMember = (t.memberStake * sv.NegPenalty) / 100;
-            uint256 toCreator = (t.memberStake * _CounterPenalty()) / 100;
+            uint256 toMember = (t.memberStake * ___getNegPenalty()) / 100;
+            uint256 toCreator = (t.memberStake * __CounterPenalty()) / 100;
 
             withdrawable[t.member] += toMember;
             withdrawable[t.creator] += toCreator + t.creatorStake + t.reward;
@@ -954,13 +783,13 @@ function getCreatorStake(uint256 __value) internal view returns (uint256) {
 
         // reputation penalties
         if (Users[t.member].isRegistered) {
-            if (Users[t.member].reputation < rp.deadlineHitMember) Users[t.member].reputation = 0;
-            else Users[t.member].reputation -= rp.deadlineHitMember;
+            if (Users[t.member].reputation < ___getDeadlineHitMember()) Users[t.member].reputation = 0;
+            else Users[t.member].reputation -= ___getDeadlineHitMember();
         }
 
         if (Users[t.creator].isRegistered) {
-            if (Users[t.creator].reputation < rp.deadlineHitCreator) Users[t.creator].reputation = 0;
-            else Users[t.creator].reputation -= rp.deadlineHitCreator;
+            if (Users[t.creator].reputation < ___getDeadlineHitCreator()) Users[t.creator].reputation = 0;
+            else Users[t.creator].reputation -= ___getDeadlineHitCreator();
         }
         t.status = TaskStatus.Cancelled;
 
@@ -996,6 +825,13 @@ function getCreatorStake(uint256 __value) internal view returns (uint256) {
     // READ HELPERS
     // =============================================================
 
+    /**
+     * @notice Get caller's stored user data
+     */
+    function getMyData() external view onlyRegistered returns (User memory) {
+        return Users[msg.sender];
+    }
+
     function getJoinRequests(uint256 taskId) external view onlyRegistered returns (JoinRequest[] memory) {
         return joinRequests[taskId];
     }
@@ -1011,6 +847,36 @@ function getCreatorStake(uint256 __value) internal view returns (uint256) {
         return withdrawable[msg.sender];
     }
 
+    function __getProjectValueNum(
+    uint32 DeadlineHours,
+    uint8 MaximumRevision,
+    uint256 RewardEther,
+    address Caller
+    ) internal view returns (uint256) {
+        uint256 _Value = ((___getRewardScore() / 10) * RewardEther) + ((___getReputationScore() / 10) * __seeReputation(Caller)) + 
+                    ((___getDeadlineScore() / 10) * DeadlineHours) + ((___getRevisionScore() / 10) * MaximumRevision);
+        return _Value;
+    }
+
+    /**
+     * @notice creator stake calculation
+     */
+    function getCreatorStake(
+    uint32 DeadlineHours,
+    uint8 MaximumRevision,
+    uint256 RewardEther
+    ) public view onlyRegistered returns (uint256) {
+    return ___getCreatorStake(__getProjectValueNum(DeadlineHours, MaximumRevision, RewardEther, msg.sender));
+    }
+
+    /**
+     * @notice member stake calculation
+     */
+    function getMemberRequiredStake(uint256 taskId) public view onlyRegistered returns (uint256) {
+    Task storage t = Tasks[taskId];
+    return (t.reward * memberStakePercentReward) / 100;
+    }
+
     // =============================================================
     // INTERNAL HELPERS
     // =============================================================
@@ -1019,7 +885,7 @@ function getCreatorStake(uint256 __value) internal view returns (uint256) {
      * @notice Read stored reputation for a given address
      * @dev Fallback to myPoint mapping if Users entry not present (backwards compatibility)
      */
-    function _seeReputation(address who) internal view returns (uint32) {
+    function __seeReputation(address who) internal view returns (uint32) {
         if (Users[who].isRegistered) {
             return Users[who].reputation;
         } else {
@@ -1030,14 +896,13 @@ function getCreatorStake(uint256 __value) internal view returns (uint256) {
     /**
      * @notice Creator approves submission, triggering payout allocations (pull model)
      */
-    function approveTask(uint256 taskId)
+    function __approveTask(uint256 taskId)
         public
         taskExists(taskId)
         onlyTaskCreator(taskId)
         nonReentrant
         whenNotPaused
     {
-        reputationPoint storage rp = reputationPoints;
         Task storage t = Tasks[taskId];
         TaskSubmit storage s = TaskSubmits[taskId];
 
@@ -1060,9 +925,9 @@ function getCreatorStake(uint256 __value) internal view returns (uint256) {
         t.status = TaskStatus.Completed;
 
         // reputations updates
-        if (Users[t.member].isRegistered) Users[t.member].reputation += rp.taskAcceptMember;
+        if (Users[t.member].isRegistered) Users[t.member].reputation += ___getTaskAcceptMember();
 
-        if (Users[t.creator].isRegistered) Users[t.creator].reputation += rp.taskAcceptCreator;
+        if (Users[t.creator].isRegistered) Users[t.creator].reputation += ___getTaskAcceptCreator();
 
         // counters
         Users[t.creator].totalTasksCompleted++;
@@ -1082,15 +947,14 @@ function getCreatorStake(uint256 __value) internal view returns (uint256) {
     /**
      * @notice Counter for penalty complement (100 - NegPenalty)
      */
-    function _CounterPenalty() internal view returns (uint32) {
-        StateVar storage sv = StateVars;
-        return uint32(100) - sv.NegPenalty;
+    function __CounterPenalty() internal view returns (uint32) {
+        return uint32(100) - ___getNegPenalty();
     }
 
     /**
      * @notice Reset cancel request slot for a task
      */
-    function _resetCancelRequest(uint256 taskId) internal {
+    function __resetCancelRequest(uint256 taskId) internal {
         CancelRequest storage cr = CancelRequests[taskId];
         cr.requester = address(0);
         cr.counterparty = address(0);
@@ -1099,65 +963,16 @@ function getCreatorStake(uint256 __value) internal view returns (uint256) {
         cr.reason = "";
     }
 
-    // =============================================================
-    // STAKE CALCULATIONS
-    // =============================================================
-
-    /**
-     * @notice Calculate member stake required for a task for an applicant
-     * @param taskId id of task
-     * @param applicant address of applicant
-     * @return memberStake calculated in wei
-     */
-    function getMemberRequiredStakeFor(uint256 taskId, address applicant) public view returns (uint256) {
-        Task storage t = Tasks[taskId];
-        uint256 hoursInput = uint256(t.deadlineHours);
-        // formula: reward * (hours+1) * algo / ((repApplicant+1)*(repCreator+1)*(maxRevision+1))
-        // uses reward in wei
-        uint256 memberStake = (t.reward * (hoursInput + 1) * algoConstant) /
-            (uint256(_seeReputation(applicant) + 1) * uint256(_seeReputation(t.creator) + 1) * uint256(t.maxRevision + 1));
-        return memberStake;
-    }
-
-    /**
-     * @notice Calculate creator stake required (explicit)
-     * @param creator creator address (for reputation)
-     * @param rewardWei reward in wei
-     * @param maxRevision allowed revisions
-     * @param deadlineHours configured hours
-     * @return creatorStake in wei
-     */
-    function getCreatorRequiredStakeFor(
-        address creator,
-        uint256 rewardWei,
-        uint8 maxRevision,
-        uint256 deadlineHours
-    ) public view returns (uint256) {
-        uint256 creatorStake = (rewardWei * (uint256(maxRevision) + 1) * algoConstant) /
-            (uint256(_seeReputation(creator) + 1) * (deadlineHours + 1));
-        return creatorStake;
-    }
-
-    /**
-     * @notice Backwards-compatible wrapper using msg.sender as applicant
-     */
-    function getMemberRequiredStake(uint256 taskId) public view returns (uint256) {
-        return getMemberRequiredStakeFor(taskId, msg.sender);
-    }
-
 //---------------------------------------------------- ADMIN & OWNER ------------------------------------------------------------
-
-    // =============================================================
-    // SYSTEM / ADMIN FUNCTIONS (employees & owner)
-    // =============================================================
 
     /**
      * @notice Set algorithm scaling constant used in stake formulas.
      */
-    function setAlgoConstant(uint256 newAlgoConstant) external onlyEmployes whenNotPaused {
-        require(newAlgoConstant > 0, "can't be 0");
-        algoConstant = newAlgoConstant;
-        emit AlgoConstantChanged(newAlgoConstant);
+    function setMemberStakePercentageFromStake(uint256 NewmemberStakePercentReward) external onlyEmployes whenNotPaused {
+        require(NewmemberStakePercentReward > 0, "can't be 0");
+        require(NewmemberStakePercentReward <= 100, "can't be >100");
+        memberStakePercentReward = NewmemberStakePercentReward;
+        emit memberStakePercentRewardChanged(NewmemberStakePercentReward);
     }
 
     /**
@@ -1179,107 +994,6 @@ function getCreatorStake(uint256 __value) internal view returns (uint256) {
         zero_Address(_NewsystemWallet);
         systemWallet = _NewsystemWallet;
         emit SystemWalletChanged(_NewsystemWallet);
-    }
-
-    // =============================================================
-    // Struct StateVAR
-    // =============================================================
-
-    function setStateVars(
-        uint64 _cooldownInHour,
-        uint32 _minRevisionTimeInHour, // stored in hours
-        uint32 _NegPenalty, // percent (0..100)
-        uint32 _maxReward, // input unit (ether)
-        uint32 _feePercentage, // percent for creatorStake
-        uint32 _maxStake, // upper limit for stake (business unit)
-        uint32 _maxRevision
-    ) external onlyEmployes whenNotPaused {
-        if (_maxStake > Stakes.ultraHigh) revert InvalidMaxStakeAmount();
-        StateVars = StateVar({
-            cooldownInHour : _cooldownInHour,
-            minRevisionTimeInHour : _minRevisionTimeInHour,
-            NegPenalty : _NegPenalty,
-            maxReward : _maxReward,
-            feePercentage : _feePercentage,
-            maxStake : _maxStake,
-            maxRevision : _maxRevision
-        });
-        emit StateVarsChanged(_cooldownInHour, _minRevisionTimeInHour, _NegPenalty, _maxReward, _feePercentage, _maxStake, _maxRevision);
-    }
-
-    function setComponentWeightPercentage(
-        uint64 _rewardScore,
-        uint64 _reputationScore,
-        uint64 _deadlineScore,
-        uint64 _revisionScore
-    ) external onlyEmployes whenNotPaused{
-        uint64 Total = _rewardScore + _reputationScore + _deadlineScore + _revisionScore;
-        if (Total > 10) revert TotalMustBe10();
-        if (Total != 10) revert TotalMustBe10();
-        componentWeightPercentages = componentWeightPercentage({
-            rewardScore : _rewardScore,
-            reputationScore : _reputationScore,
-            deadlineScore : _deadlineScore,
-            revisionScore : _revisionScore
-        });
-    }
-    /**
-     * @notice Set reputation penalty/award points in one call
-     */
-    function setPenaltyPoint(
-        uint32 newCancelByMe,
-        uint32 newrequestCancel,
-        uint32 newrespondCancel,
-        uint32 newrevision,
-        uint32 newtaskAcceptCreator,
-        uint32 newtaskAcceptMember,
-        uint32 newdeadlineHitCreator,
-        uint32 newdeadlineHitMember
-    ) external onlyEmployes whenNotPaused {
-        reputationPoints.CancelByMe = newCancelByMe;
-        reputationPoints.requestCancel = newrequestCancel;
-        reputationPoints.respondCancel = newrespondCancel;
-        reputationPoints.revision = newrevision;
-        reputationPoints.taskAcceptCreator = newtaskAcceptCreator;
-        reputationPoints.taskAcceptMember = newtaskAcceptMember;
-        reputationPoints.deadlineHitCreator = newdeadlineHitCreator;
-        reputationPoints.deadlineHitMember = newdeadlineHitMember;
-    }
-
-    function setStakeAmount(
-        uint64 _low,
-        uint64 _midLow,
-        uint32 _mid,
-        uint32 _midHigh,
-        uint32 _high,
-        uint32 _ultraHigh
-    ) external onlyEmployes whenNotPaused {
-        stakeAmounts = stakeAmount({
-            low : _low,
-            midLow : _midLow,
-            mid : _mid,
-            midHigh : _midHigh,
-            high : _high,
-            ultraHigh : _ultraHigh
-        });
-    }
-
-    function setCreatoStakeAmount(
-        uint256 _low,
-        uint256 _midleLow,
-        uint256 _midle,
-        uint256 _midleHigh,
-        uint256 _high,
-        uint256 _ultraHigh
-    ) external onlyEmployes whenNotPaused {
-        Stakes = Stake ({
-            low : _low,
-            midleLow : _midleLow,
-            midle : _midle,
-            midleHigh : _midleHigh,
-            high : _high,
-            ultraHigh : _ultraHigh
-        });
     }
 
 
