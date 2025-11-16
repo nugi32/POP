@@ -21,7 +21,7 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
  *  - Member stakes when requesting to join (stake is returned/used depending on outcome).
  *  - Deadlines are handled via timestamp `deadlineAt`.
  *  - Reputation points and counters are tracked per-user.
- *  - Fee (protocol share) stored in `feeCollected` and withdrawn manually by employees.
+ *  - Fee (protocol share) stored in `feeCollected` and withdrawn manuall by employees.
  */
 contract TrustlessTeamProtocol is
     Initializable,
@@ -168,6 +168,8 @@ contract TrustlessTeamProtocol is
     event FeeWithdrawnToSystemWallet(uint256 amount);
     event ContractPaused(address indexed caller);
     event ContractUnpaused(address indexed caller);
+    event AccessControlChanged(address newAccessControl);
+    event StateVarChanged(address newStateVar);
 
     // =============================================================
     // ERRORS (custom, cheaper than strings)
@@ -195,6 +197,7 @@ contract TrustlessTeamProtocol is
     error ValueMismatch();
     error StakeOverflow();
     error StakeMismatch();
+    error NoSubmision();
 
     //system
     error InvalidMaxStakeAmount();
@@ -239,14 +242,14 @@ contract TrustlessTeamProtocol is
 
 
     function initialize(
-        address _employeeAssignment,
+        address _accessControl,
         address payable _systemWallet,
         address _stateVar,
         uint256 _initialmemberStakePercentReward
     ) public initializer {
         // validate
         zero_Address(_systemWallet);
-        zero_Address(_employeeAssignment);
+        zero_Address(_accessControl);
 
         // init parents
         __UUPSUpgradeable_init();
@@ -254,7 +257,7 @@ contract TrustlessTeamProtocol is
         __Pausable_init();
 
         // set employeeAssignment (AccesControl expects this)
-        employeeAssignment = IEmployeeAssignment(_employeeAssignment);
+        accessControl = IAccessControl(_accessControl);
         stateVar = IStateVar(_stateVar);
 
         // system config
@@ -274,7 +277,7 @@ contract TrustlessTeamProtocol is
      * @param Age age
      * @dev Requires caller to be non-employee (onlyUser) and non-zero caller.
      */
-    function register(string calldata Name, uint8 Age)
+    function Register(string calldata Name, uint8 Age)
         external
         onlyUser
         callerZeroAddr
@@ -394,7 +397,7 @@ contract TrustlessTeamProtocol is
      */
     function openRegistration(uint256 taskId) external taskExists(taskId) onlyTaskCreator(taskId) whenNotPaused {
         Task storage t = Tasks[taskId];
-        require(t.status == TaskStatus.Active, "not active");
+        if (t.status != TaskStatus.Active) revert TaskNotOpen();
         t.status = TaskStatus.OpenRegistration;
         emit RegistrationOpened(taskId);
     }
@@ -404,7 +407,7 @@ contract TrustlessTeamProtocol is
      */
     function closeRegistration(uint256 taskId) external taskExists(taskId) onlyTaskCreator(taskId) whenNotPaused {
         Task storage t = Tasks[taskId];
-        require(t.status == TaskStatus.OpenRegistration, "not open");
+        if (t.status != TaskStatus.OpenRegistration) revert TaskNotOpen();
         t.status = TaskStatus.Active;
         emit RegistrationClosed(taskId);
     }
@@ -680,8 +683,11 @@ contract TrustlessTeamProtocol is
         Task storage t = Tasks[taskId];
         TaskSubmit storage s = TaskSubmits[taskId];
 
+        if (s.sender == address(0)) revert NoSubmision();  //note !!
         if (t.member != msg.sender) revert NotTaskMember();
         if (s.status != SubmitStatus.RevisionNeeded) revert TaskNotOpen();
+
+        // auto-approve if revision exceeded limit
         if (s.revisionTime > t.maxRevision) {
         __approveTask(taskId);
         return;
@@ -693,12 +699,6 @@ contract TrustlessTeamProtocol is
         s.note = Note;
         s.status = SubmitStatus.Pending;
         s.githubURL = GithubFixedURL;
-
-        if (s.revisionTime > t.maxRevision) {
-            // auto-approve if revision exceeded limit
-            __approveTask(taskId);
-            return;
-        }
 
         emit TaskReSubmitted(taskId, msg.sender);
     }
@@ -746,6 +746,16 @@ contract TrustlessTeamProtocol is
         emit RevisionRequested(taskId, s.revisionTime, t.deadlineAt);
     }
 
+    function approveTask(uint256 taskId)
+        external
+        taskExists(taskId)
+        onlyTaskCreator(taskId)
+        nonReentrant
+        whenNotPaused
+    {
+        __approveTask(taskId);
+    }
+
     // =============================================================
     // DEADLINE / TIMEOUT HANDLING
     // =============================================================
@@ -754,7 +764,7 @@ contract TrustlessTeamProtocol is
      * @notice Trigger task deadline logic. Can be called by anyone.
      * @dev Distributes stakes depending on whether the member submitted on time.
      */
-    function triggerDeadline(uint256 taskId) public taskExists(taskId) whenNotPaused {
+    function triggerDeadline(uint256 taskId) public taskExists(taskId) whenNotPaused nonReentrant {
         Task storage t = Tasks[taskId];
 
         if (t.status != TaskStatus.InProgres) revert TaskNotOpen();
@@ -850,10 +860,11 @@ contract TrustlessTeamProtocol is
     function __getProjectValueNum(
     uint32 DeadlineHours,
     uint8 MaximumRevision,
-    uint256 RewardEther,
+    uint256 rewardWei,
     address Caller
     ) internal view returns (uint256) {
-        uint256 _Value = ((___getRewardScore() / 10) * RewardEther) + ((___getReputationScore() / 10) * __seeReputation(Caller)) + 
+        uint256 rewardEtherUnits = rewardWei / 1 ether;
+        uint256 _Value = ((___getRewardScore() / 10) * rewardEtherUnits) + ((___getReputationScore() / 10) * __seeReputation(Caller)) + 
                     ((___getDeadlineScore() / 10) * DeadlineHours) + ((___getRevisionScore() / 10) * MaximumRevision);
         return _Value;
     }
@@ -864,9 +875,9 @@ contract TrustlessTeamProtocol is
     function getCreatorStake(
     uint32 DeadlineHours,
     uint8 MaximumRevision,
-    uint256 RewardEther
+    uint256 rewardWei
     ) public view onlyRegistered returns (uint256) {
-    return ___getCreatorStake(__getProjectValueNum(DeadlineHours, MaximumRevision, RewardEther, msg.sender));
+    return ___getCreatorStake(__getProjectValueNum(DeadlineHours, MaximumRevision, rewardWei, msg.sender));
     }
 
     /**
@@ -897,11 +908,7 @@ contract TrustlessTeamProtocol is
      * @notice Creator approves submission, triggering payout allocations (pull model)
      */
     function __approveTask(uint256 taskId)
-        public
-        taskExists(taskId)
-        onlyTaskCreator(taskId)
-        nonReentrant
-        whenNotPaused
+        internal
     {
         Task storage t = Tasks[taskId];
         TaskSubmit storage s = TaskSubmits[taskId];
@@ -996,6 +1003,17 @@ contract TrustlessTeamProtocol is
         emit SystemWalletChanged(_NewsystemWallet);
     }
 
+    function changeAccessControl(address _newAccesControl) external onlyOwner whenNotPaused {
+        zero_Address(_newAccesControl);
+        accessControl = IAccessControl(_newAccesControl);
+        emit AccessControlChanged(_newAccesControl);
+    }
+
+    function changeStateVarAddress(address _newStateVar) external onlyOwner whenNotPaused {
+        zero_Address(_newStateVar);
+        stateVar = IStateVar(_newStateVar);
+        emit StateVarChanged(_newStateVar);
+    }
 
     function pause() external onlyEmployes {
     _pause();
