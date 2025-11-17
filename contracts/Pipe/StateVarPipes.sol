@@ -1,266 +1,276 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "../system/StateVariable.sol";
 
-interface IStateVar {
+/// @title StateVar Exporter
+/// @notice Digunakan di Logic untuk membaca stateVariable satu per satu
+contract StateVarPipes {
 
-    // =============================================================
-    // 1. ComponentWeightPercentage Getters
-    // =============================================================
-
-    function ___getRewardScore() external view returns (uint64);
-    function ___getReputationScore() external view returns (uint64);
-    function ___getDeadlineScore() external view returns (uint64);
-    function ___getRevisionScore() external view returns (uint64);
+    stateVariable public stateVar;
 
     // =============================================================
-    // 2. StakeAmount Getters
+    // 1. ComponentWeightPercentage INTERNAL
     // =============================================================
 
-    function ___getStakeLow() external view returns (uint64);
-    function ___getStakeMidLow() external view returns (uint64);
-    function ___getStakeMid() external view returns (uint32);
-    function ___getStakeMidHigh() external view returns (uint32);
-    function ___getStakeHigh() external view returns (uint32);
-    function ___getStakeUltraHigh() external view returns (uint32);
-
-    // =============================================================
-    // 3. ReputationPoint Getters
-    // =============================================================
-
-    function ___getCancelByMe() external view returns (uint32);
-    function ___getRequestCancel() external view returns (uint32);
-    function ___getRespondCancel() external view returns (uint32);
-    function ___getRevisionPenalty() external view returns (uint32);
-    function ___getTaskAcceptCreator() external view returns (uint32);
-    function ___getTaskAcceptMember() external view returns (uint32);
-    function ___getDeadlineHitCreator() external view returns (uint32);
-    function ___getDeadlineHitMember() external view returns (uint32);
-
-    // =============================================================
-    // 4. StateVar Getters
-    // =============================================================
-
-    function ___getCooldownInHour() external view returns (uint64);
-    function ___getMinRevisionTimeInHour() external view returns (uint32);
-    function ___getNegPenalty() external view returns (uint32);
-    function ___getMaxReward() external view returns (uint32);
-    function ___getFeePercentage() external view returns (uint32);
-    function ___getMaxStake() external view returns (uint32);
-    function ___getMaxRevision() external view returns (uint32);
-
-    // =============================================================
-    // 5. StakeCategory Getters
-    // =============================================================
-
-    function ___getCategoryLow() external view returns (uint256);
-    function ___getCategoryMidleLow() external view returns (uint256);
-    function ___getCategoryMidle() external view returns (uint256);
-    function ___getCategoryMidleHigh() external view returns (uint256);
-    function ___getCategoryHigh() external view returns (uint256);
-    function ___getCategoryUltraHigh() external view returns (uint256);
-}
-
-
-abstract contract StateVarPipes is Initializable {
-
-    IStateVar public stateVar;
-
-    // 1 //
-    struct ComponentWeightPercentage {
-        uint64 rewardScore;
-        uint64 reputationScore;
-        uint64 deadlineScore;
-        uint64 revisionScore;
-    }
-
-    // 2 //
-    struct StakeAmount {
-        uint64 low;
-        uint64 midLow;
-        uint32 mid;
-        uint32 midHigh;
-        uint32 high;
-        uint32 ultraHigh;
-    }
-
-    // 3 //
-    struct ReputationPoint {
-        uint32 CancelByMe;
-        uint32 requestCancel;
-        uint32 respondCancel;
-        uint32 revision;
-        uint32 taskAcceptCreator;
-        uint32 taskAcceptMember;
-        uint32 deadlineHitCreator;
-        uint32 deadlineHitMember;
-    }
-
-    // 4 //
-    struct StateVariables {
-        uint64 cooldownInHour;
-        uint32 minRevisionTimeInHour;
-        uint32 NegPenalty;
-        uint32 maxReward;
-        uint32 feePercentage;
-        uint32 maxStake;
-        uint32 maxRevision;
-    }
-
-    // 5 //
-    struct StakeCategory {
-        uint256 low;
-        uint256 midleLow;
-        uint256 midle;
-        uint256 midleHigh;
-        uint256 high;
-        uint256 ultraHigh;
-    }
-
-    // State storage
-    ComponentWeightPercentage internal componentWeightPercentages;
-    StakeAmount internal stakeAmounts;
-    ReputationPoint internal reputationPoints;
-    StateVariables internal StateVars;
-    StakeCategory internal StakeCategorys;
-
-    // =============================================================
-    // 1. ComponentWeightPercentage Getters
-    // =============================================================
     function ___getRewardScore() internal view returns (uint64) {
-        return componentWeightPercentages.rewardScore;
+        return stateVar.__getRewardScore();
     }
 
     function ___getReputationScore() internal view returns (uint64) {
-        return componentWeightPercentages.reputationScore;
+        return stateVar.__getReputationScore();
     }
 
     function ___getDeadlineScore() internal view returns (uint64) {
-        return componentWeightPercentages.deadlineScore;
+        return stateVar.__getDeadlineScore();
     }
 
     function ___getRevisionScore() internal view returns (uint64) {
-        return componentWeightPercentages.revisionScore;
+        return stateVar.__getRevisionScore();
     }
+
 
     // =============================================================
-    // 2. StakeAmount Getters
+    // 2. StakeAmount INTERNAL
     // =============================================================
-    function ___getStakeLow() internal view returns (uint64) {
-        return stakeAmounts.low;
+
+    function ___getStakeLow() internal view returns (uint256) {
+        return stateVar.__getStakeLow();
     }
 
-    function ___getStakeMidLow() internal view returns (uint64) {
-        return stakeAmounts.midLow;
+    function ___getStakeMidLow() internal view returns (uint256) {
+        return stateVar.__getStakeMidLow();
     }
 
-    function ___getStakeMid() internal view returns (uint32) {
-        return stakeAmounts.mid;
+    function ___getStakeMid() internal view returns (uint256) {
+        return stateVar.__getStakeMid();
     }
 
-    function ___getStakeMidHigh() internal view returns (uint32) {
-        return stakeAmounts.midHigh;
+    function ___getStakeMidHigh() internal view returns (uint256) {
+        return stateVar.__getStakeMidHigh();
     }
 
-    function ___getStakeHigh() internal view returns (uint32) {
-        return stakeAmounts.high;
+    function ___getStakeHigh() internal view returns (uint256) {
+        return stateVar.__getStakeHigh();
     }
 
-    function ___getStakeUltraHigh() internal view returns (uint32) {
-        return stakeAmounts.ultraHigh;
+    function ___getStakeUltraHigh() internal view returns (uint256) {
+        return stateVar.__getStakeUltraHigh();
     }
+
 
     // =============================================================
-    // 3. ReputationPoint Getters
+    // 3. ReputationPoint INTERNAL
     // =============================================================
+
     function ___getCancelByMe() internal view returns (uint32) {
-        return reputationPoints.CancelByMe;
+        return stateVar.__getCancelByMe();
     }
 
     function ___getRequestCancel() internal view returns (uint32) {
-        return reputationPoints.requestCancel;
+        return stateVar.__getRequestCancel();
     }
 
     function ___getRespondCancel() internal view returns (uint32) {
-        return reputationPoints.respondCancel;
+        return stateVar.__getRespondCancel();
     }
 
     function ___getRevisionPenalty() internal view returns (uint32) {
-        return reputationPoints.revision;
+        return stateVar.__getRevisionPenalty();
     }
 
     function ___getTaskAcceptCreator() internal view returns (uint32) {
-        return reputationPoints.taskAcceptCreator;
+        return stateVar.__getTaskAcceptCreator();
     }
 
     function ___getTaskAcceptMember() internal view returns (uint32) {
-        return reputationPoints.taskAcceptMember;
+        return stateVar.__getTaskAcceptMember();
     }
 
     function ___getDeadlineHitCreator() internal view returns (uint32) {
-        return reputationPoints.deadlineHitCreator;
+        return stateVar.__getDeadlineHitCreator();
     }
 
     function ___getDeadlineHitMember() internal view returns (uint32) {
-        return reputationPoints.deadlineHitMember;
+        return stateVar.__getDeadlineHitMember();
     }
 
+
     // =============================================================
-    // 4. StateVar Getters
+    // 4. State Variables INTERNAL
     // =============================================================
-    function ___getCooldownInHour() internal view returns (uint64) {
-        return StateVars.cooldownInHour;
+
+    function ___getCooldownInHour() internal view returns (uint32) {
+        return stateVar.__getCooldownInHour();
     }
 
     function ___getMinRevisionTimeInHour() internal view returns (uint32) {
-        return StateVars.minRevisionTimeInHour;
+        return stateVar.__getMinRevisionTimeInHour();
     }
 
     function ___getNegPenalty() internal view returns (uint32) {
-        return StateVars.NegPenalty;
+        return stateVar.__getNegPenalty();
     }
 
     function ___getMaxReward() internal view returns (uint32) {
-        return StateVars.maxReward;
+        return stateVar.__getMaxReward();
     }
 
     function ___getFeePercentage() internal view returns (uint32) {
-        return StateVars.feePercentage;
+        return stateVar.__getFeePercentage();
     }
 
-    function ___getMaxStake() internal view returns (uint32) {
-        return StateVars.maxStake;
+    function ___getMaxStake() internal view returns (uint64) {
+        return stateVar.__getMaxStake();
     }
 
     function ___getMaxRevision() internal view returns (uint32) {
-        return StateVars.maxRevision;
+        return stateVar.__getMaxRevision();
     }
 
+
     // =============================================================
-    // 5. StakeCategory Getters
+    // 5. StakeCategory INTERNAL
     // =============================================================
+
     function ___getCategoryLow() internal view returns (uint256) {
-        return StakeCategorys.low;
+        return stateVar.__getCategoryLow();
     }
 
     function ___getCategoryMidleLow() internal view returns (uint256) {
-        return StakeCategorys.midleLow;
+        return stateVar.__getCategoryMidleLow();
     }
 
     function ___getCategoryMidle() internal view returns (uint256) {
-        return StakeCategorys.midle;
+        return stateVar.__getCategoryMidle();
     }
 
     function ___getCategoryMidleHigh() internal view returns (uint256) {
-        return StakeCategorys.midleHigh;
+        return stateVar.__getCategoryMidleHigh();
     }
 
     function ___getCategoryHigh() internal view returns (uint256) {
-        return StakeCategorys.high;
+        return stateVar.__getCategoryHigh();
     }
 
     function ___getCategoryUltraHigh() internal view returns (uint256) {
-        return StakeCategorys.ultraHigh;
+        return stateVar.__getCategoryUltraHigh();
     }
+
+/*
+    // =============================================================
+    // ===============  EXTERNAL GETTERS DI BAWAH  =================
+    // =============================================================
+
+    // ---------- 1. ComponentWeightPercentage ----------
+    function getAllComponentWeightPercentage()
+        external
+        view
+        returns (
+            uint64 rewardScore,
+            uint64 reputationScore,
+            uint64 deadlineScore,
+            uint64 revisionScore
+        )
+    {
+        rewardScore = ___getRewardScore();
+        reputationScore = ___getReputationScore();
+        deadlineScore = ___getDeadlineScore();
+        revisionScore = ___getRevisionScore();
+    }
+
+
+    // ---------- 2. StakeAmount ----------
+    function getAllStakeAmount()
+        external
+        view
+        returns (
+            uint256 stakeLow,
+            uint256 stakeMidLow,
+            uint256 stakeMid,
+            uint256 stakeMidHigh,
+            uint256 stakeHigh,
+            uint256 stakeUltraHigh
+        )
+    {
+        stakeLow = ___getStakeLow();
+        stakeMidLow = ___getStakeMidLow();
+        stakeMid = ___getStakeMid();
+        stakeMidHigh = ___getStakeMidHigh();
+        stakeHigh = ___getStakeHigh();
+        stakeUltraHigh = ___getStakeUltraHigh();
+    }
+
+
+    // ---------- 3. ReputationPoint ----------
+    function getAllReputationPoint()
+        external
+        view
+        returns (
+            uint32 cancelByMe,
+            uint32 requestCancel,
+            uint32 respondCancel,
+            uint32 revisionPenalty,
+            uint32 taskAcceptCreator,
+            uint32 taskAcceptMember,
+            uint32 deadlineHitCreator,
+            uint32 deadlineHitMember
+        )
+    {
+        cancelByMe = ___getCancelByMe();
+        requestCancel = ___getRequestCancel();
+        respondCancel = ___getRespondCancel();
+        revisionPenalty = ___getRevisionPenalty();
+        taskAcceptCreator = ___getTaskAcceptCreator();
+        taskAcceptMember = ___getTaskAcceptMember();
+        deadlineHitCreator = ___getDeadlineHitCreator();
+        deadlineHitMember = ___getDeadlineHitMember();
+    }
+
+
+    // ---------- 4. StateVar ----------
+    function getAllStateVar()
+        external
+        view
+        returns (
+            uint32 cooldownInHour,
+            uint32 minRevisionTimeInHour,
+            uint32 negPenalty,
+            uint32 maxReward,
+            uint32 feePercentage,
+            uint64 maxStake,
+            uint32 maxRevision
+        )
+    {
+        cooldownInHour = ___getCooldownInHour();
+        minRevisionTimeInHour = ___getMinRevisionTimeInHour();
+        negPenalty = ___getNegPenalty();
+        maxReward = ___getMaxReward();
+        feePercentage = ___getFeePercentage();
+        maxStake = ___getMaxStake();
+        maxRevision = ___getMaxRevision();
+    }
+
+
+    // ---------- 5. StakeCategory ----------
+    function getAllStakeCategory()
+        external
+        view
+        returns (
+            uint256 categoryLow,
+            uint256 categoryMidleLow,
+            uint256 categoryMidle,
+            uint256 categoryMidleHigh,
+            uint256 categoryHigh,
+            uint256 categoryUltraHigh
+        )
+    {
+        categoryLow = ___getCategoryLow();
+        categoryMidleLow = ___getCategoryMidleLow();
+        categoryMidle = ___getCategoryMidle();
+        categoryMidleHigh = ___getCategoryMidleHigh();
+        categoryHigh = ___getCategoryHigh();
+        categoryUltraHigh = ___getCategoryUltraHigh();
+    }*/
+
 }

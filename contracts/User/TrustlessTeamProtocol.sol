@@ -250,6 +250,7 @@ contract TrustlessTeamProtocol is
         // validate
         zero_Address(_systemWallet);
         zero_Address(_accessControl);
+        zero_Address(_stateVar);
 
         // init parents
         __UUPSUpgradeable_init();
@@ -258,7 +259,7 @@ contract TrustlessTeamProtocol is
 
         // set employeeAssignment (AccesControl expects this)
         accessControl = IAccessControl(_accessControl);
-        stateVar = IStateVar(_stateVar);
+        stateVarUtils_init(_stateVar);
 
         // system config
         systemWallet = _systemWallet;
@@ -1011,7 +1012,7 @@ contract TrustlessTeamProtocol is
 
     function changeStateVarAddress(address _newStateVar) external onlyOwner whenNotPaused {
         zero_Address(_newStateVar);
-        stateVar = IStateVar(_newStateVar);
+        stateVarUtils_init(_newStateVar);
         emit StateVarChanged(_newStateVar);
     }
 

@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import "./Pipe/AccesControlPipes.sol";
+//import "./Pipe/AccesControlPipes.sol";
 import "@openzeppelin/contracts/utils/Pausable.sol";
 
 
-contract stateVariable is AccesControl, Pausable {
+contract stateVariable is Pausable {
 
 // =============================================================
 // Struct Definitions
@@ -129,58 +129,7 @@ error InvalidMaxStakeAmount();
 
 // ------------------------------------------------------- Constructor ------------------------------------------------------------
 
-constructor(
-    /*/ --------------------------
-    // (1) Component Weight
-    // --------------------------
-    uint64 _rewardScore,
-    uint64 _reputationScore,
-    uint64 _deadlineScore,
-    uint64 _revisionScore,
-
-    // --------------------------
-    // (2) Stake Amount
-    // --------------------------
-    uint256 _stakeLow,
-    uint256 _stakeMidLow,
-    uint256 _stakeMid,
-    uint256 _stakeMidHigh,
-    uint256 _stakeHigh,
-    uint256 _stakeUltraHigh,
-
-    // --------------------------
-    // (3) Reputation Point
-    // --------------------------
-    uint32 _cancelByMe,
-    uint32 _requestCancel,
-    uint32 _respondCancel,
-    uint32 _revision,
-    uint32 _taskAcceptCreator,
-    uint32 _taskAcceptMember,
-    uint32 _deadlineHitCreator,
-    uint32 _deadlineHitMember,
-
-    // --------------------------
-    // (4) State Vars
-    // --------------------------
-    uint32 _cooldownInHour,
-    uint32 _minRevisionTimeInHour,
-    uint32 _negPenalty,
-    uint32 _maxReward,
-    uint32 _feePercentage,
-    uint64 _maxStake,
-    uint32 _maxRevision,
-
-    // --------------------------
-    // (5) Stake Category
-    // --------------------------
-    uint256 _catLow,
-    uint256 _catMidleLow,
-    uint256 _catMidle,
-    uint256 _catMidleHigh,
-    uint256 _catHigh,
-    uint256 _catUltraHigh*/
-) {
+constructor() {
 
     // 1. Component Weight Percentage
     //uint64 total = _rewardScore + _reputationScore + _deadlineScore + _revisionScore;
@@ -245,19 +194,19 @@ constructor(
 // 1. ComponentWeightPercentage Getters
 // =============================================================
 
-function ___getRewardScore() internal view returns (uint64) {
+function ___getRewardScore() external view returns (uint64) {
     return componentWeightPercentages.rewardScore;
 }
 
-function ___getReputationScore() internal view returns (uint64) {
+function ___getReputationScore() external view returns (uint64) {
     return componentWeightPercentages.reputationScore;
 }
 
-function ___getDeadlineScore() internal view returns (uint64) {
+function ___getDeadlineScore() external view returns (uint64) {
     return componentWeightPercentages.deadlineScore;
 }
 
-function ___getRevisionScore() internal view returns (uint64) {
+function ___getRevisionScore() external view returns (uint64) {
     return componentWeightPercentages.revisionScore;
 }
 
@@ -266,27 +215,27 @@ function ___getRevisionScore() internal view returns (uint64) {
 // 2. StakeAmount Getters
 // =============================================================
 
-function ___getStakeLow() internal view returns (uint256) {
+function ___getStakeLow() external view returns (uint256) {
     return stakeAmounts.low;
 }
 
-function ___getStakeMidLow() internal view returns (uint256) {
+function ___getStakeMidLow() external view returns (uint256) {
     return stakeAmounts.midLow;
 }
 
-function ___getStakeMid() internal view returns (uint256) {
+function ___getStakeMid() external view returns (uint256) {
     return stakeAmounts.mid;
 }
 
-function ___getStakeMidHigh() internal view returns (uint256) {
+function ___getStakeMidHigh() external view returns (uint256) {
     return stakeAmounts.midHigh;
 }
 
-function ___getStakeHigh() internal view returns (uint256) {
+function ___getStakeHigh() external view returns (uint256) {
     return stakeAmounts.high;
 }
 
-function ___getStakeUltraHigh() internal view returns (uint256) {
+function ___getStakeUltraHigh() external view returns (uint256) {
     return stakeAmounts.ultraHigh;
 }
 
@@ -295,35 +244,35 @@ function ___getStakeUltraHigh() internal view returns (uint256) {
 // 3. ReputationPoint Getters
 // =============================================================
 
-function ___getCancelByMe() internal view returns (uint32) {
+function ___getCancelByMe() external view returns (uint32) {
     return reputationPoints.CancelByMe;
 }
 
-function ___getRequestCancel() internal view returns (uint32) {
+function ___getRequestCancel() external view returns (uint32) {
     return reputationPoints.requestCancel;
 }
 
-function ___getRespondCancel() internal view returns (uint32) {
+function ___getRespondCancel() external view returns (uint32) {
     return reputationPoints.respondCancel;
 }
 
-function ___getRevisionPenalty() internal view returns (uint32) {
+function ___getRevisionPenalty() external view returns (uint32) {
     return reputationPoints.revision;
 }
 
-function ___getTaskAcceptCreator() internal view returns (uint32) {
+function ___getTaskAcceptCreator() external view returns (uint32) {
     return reputationPoints.taskAcceptCreator;
 }
 
-function ___getTaskAcceptMember() internal view returns (uint32) {
+function ___getTaskAcceptMember() external view returns (uint32) {
     return reputationPoints.taskAcceptMember;
 }
 
-function ___getDeadlineHitCreator() internal view returns (uint32) {
+function ___getDeadlineHitCreator() external view returns (uint32) {
     return reputationPoints.deadlineHitCreator;
 }
 
-function ___getDeadlineHitMember() internal view returns (uint32) {
+function ___getDeadlineHitMember() external view returns (uint32) {
     return reputationPoints.deadlineHitMember;
 }
 
@@ -332,31 +281,31 @@ function ___getDeadlineHitMember() internal view returns (uint32) {
 // 4. StateVar Getters
 // =============================================================
 
-function ___getCooldownInHour() internal view returns (uint32) {
+function ___getCooldownInHour() external view returns (uint32) {
     return StateVars.cooldownInHour;
 }
 
-function ___getMinRevisionTimeInHour() internal view returns (uint32) {
+function ___getMinRevisionTimeInHour() external view returns (uint32) {
     return StateVars.minRevisionTimeInHour;
 }
 
-function ___getNegPenalty() internal view returns (uint32) {
+function ___getNegPenalty() external view returns (uint32) {
     return StateVars.NegPenalty;
 }
 
-function ___getMaxReward() internal view returns (uint32) {
+function ___getMaxReward() external view returns (uint32) {
     return StateVars.maxReward;
 }
 
-function ___getFeePercentage() internal view returns (uint32) {
+function ___getFeePercentage() external view returns (uint32) {
     return StateVars.feePercentage;
 }
 
-function ___getMaxStake() internal view returns (uint64) {
+function ___getMaxStake() external view returns (uint64) {
     return StateVars.maxStake;
 }
 
-function ___getMaxRevision() internal view returns (uint32) {
+function ___getMaxRevision() external view returns (uint32) {
     return StateVars.maxRevision;
 }
 
@@ -365,27 +314,27 @@ function ___getMaxRevision() internal view returns (uint32) {
 // 5. StakeCategory Getters
 // =============================================================
 
-function ___getCategoryLow() internal view returns (uint256) {
+function ___getCategoryLow() external view returns (uint256) {
     return StakeCategorys.low;
 }
 
-function ___getCategoryMidleLow() internal view returns (uint256) {
+function ___getCategoryMidleLow() external view returns (uint256) {
     return StakeCategorys.midleLow;
 }
 
-function ___getCategoryMidle() internal view returns (uint256) {
+function ___getCategoryMidle() external view returns (uint256) {
     return StakeCategorys.midle;
 }
 
-function ___getCategoryMidleHigh() internal view returns (uint256) {
+function ___getCategoryMidleHigh() external view returns (uint256) {
     return StakeCategorys.midleHigh;
 }
 
-function ___getCategoryHigh() internal view returns (uint256) {
+function ___getCategoryHigh() external view returns (uint256) {
     return StakeCategorys.high;
 }
 
-function ___getCategoryUltraHigh() internal view returns (uint256) {
+function ___getCategoryUltraHigh() external view returns (uint256) {
     return StakeCategorys.ultraHigh;
 }
 
@@ -396,7 +345,7 @@ function ___getCategoryUltraHigh() internal view returns (uint256) {
 // =============================================================
 // Setter Functions
 // =============================================================
-
+/*
 // 1 //
 function setComponentWeightPercentage(
     uint64 _rewardScore,
@@ -513,7 +462,7 @@ function setStateVars(
         _maxStake,
         _maxRevision
     );
-}*/
+}
 
 // 5 //
 function setStakeCategory(
@@ -567,9 +516,6 @@ function setStakeCategory(
         return total;
     }
 
-    /**
-     * @notice creator stake calculation
-     */
     function getCreatorStake(
     uint32 DeadlineHours,
     uint8 MaximumRevision,
@@ -615,5 +561,5 @@ function ___getCreatorStake(uint256 __value) public view returns (uint256) {
     } else {
         return ___getStakeUltraHigh();
     }
-}
+}*/
 }

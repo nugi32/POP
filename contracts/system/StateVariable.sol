@@ -240,24 +240,23 @@ constructor(
 }
 
 //-------------------------------------------------------------------------- Exported Functions --------------------------------------------------------------------------
-
 // =============================================================
 // 1. ComponentWeightPercentage Getters
 // =============================================================
 
-function ___getRewardScore() external view returns (uint64) {
+function __getRewardScore() external view returns (uint64) {
     return componentWeightPercentages.rewardScore;
 }
 
-function ___getReputationScore() external view returns (uint64) {
+function __getReputationScore() external view returns (uint64) {
     return componentWeightPercentages.reputationScore;
 }
 
-function ___getDeadlineScore() external view returns (uint64) {
+function __getDeadlineScore() external view returns (uint64) {
     return componentWeightPercentages.deadlineScore;
 }
 
-function ___getRevisionScore() external view returns (uint64) {
+function __getRevisionScore() external view returns (uint64) {
     return componentWeightPercentages.revisionScore;
 }
 
@@ -266,27 +265,27 @@ function ___getRevisionScore() external view returns (uint64) {
 // 2. StakeAmount Getters
 // =============================================================
 
-function ___getStakeLow() external view returns (uint256) {
+function __getStakeLow() external view returns (uint256) {
     return stakeAmounts.low;
 }
 
-function ___getStakeMidLow() external view returns (uint256) {
+function __getStakeMidLow() external view returns (uint256) {
     return stakeAmounts.midLow;
 }
 
-function ___getStakeMid() external view returns (uint256) {
+function __getStakeMid() external view returns (uint256) {
     return stakeAmounts.mid;
 }
 
-function ___getStakeMidHigh() external view returns (uint256) {
+function __getStakeMidHigh() external view returns (uint256) {
     return stakeAmounts.midHigh;
 }
 
-function ___getStakeHigh() external view returns (uint256) {
+function __getStakeHigh() external view returns (uint256) {
     return stakeAmounts.high;
 }
 
-function ___getStakeUltraHigh() external view returns (uint256) {
+function __getStakeUltraHigh() external view returns (uint256) {
     return stakeAmounts.ultraHigh;
 }
 
@@ -295,35 +294,35 @@ function ___getStakeUltraHigh() external view returns (uint256) {
 // 3. ReputationPoint Getters
 // =============================================================
 
-function ___getCancelByMe() external view returns (uint32) {
+function __getCancelByMe() external view returns (uint32) {
     return reputationPoints.CancelByMe;
 }
 
-function ___getRequestCancel() external view returns (uint32) {
+function __getRequestCancel() external view returns (uint32) {
     return reputationPoints.requestCancel;
 }
 
-function ___getRespondCancel() external view returns (uint32) {
+function __getRespondCancel() external view returns (uint32) {
     return reputationPoints.respondCancel;
 }
 
-function ___getRevisionPenalty() external view returns (uint32) {
+function __getRevisionPenalty() external view returns (uint32) {
     return reputationPoints.revision;
 }
 
-function ___getTaskAcceptCreator() external view returns (uint32) {
+function __getTaskAcceptCreator() external view returns (uint32) {
     return reputationPoints.taskAcceptCreator;
 }
 
-function ___getTaskAcceptMember() external view returns (uint32) {
+function __getTaskAcceptMember() external view returns (uint32) {
     return reputationPoints.taskAcceptMember;
 }
 
-function ___getDeadlineHitCreator() external view returns (uint32) {
+function __getDeadlineHitCreator() external view returns (uint32) {
     return reputationPoints.deadlineHitCreator;
 }
 
-function ___getDeadlineHitMember() external view returns (uint32) {
+function __getDeadlineHitMember() external view returns (uint32) {
     return reputationPoints.deadlineHitMember;
 }
 
@@ -332,31 +331,31 @@ function ___getDeadlineHitMember() external view returns (uint32) {
 // 4. StateVar Getters
 // =============================================================
 
-function ___getCooldownInHour() external view returns (uint32) {
+function __getCooldownInHour() external view returns (uint32) {
     return StateVars.cooldownInHour;
 }
 
-function ___getMinRevisionTimeInHour() external view returns (uint32) {
+function __getMinRevisionTimeInHour() external view returns (uint32) {
     return StateVars.minRevisionTimeInHour;
 }
 
-function ___getNegPenalty() external view returns (uint32) {
+function __getNegPenalty() external view returns (uint32) {
     return StateVars.NegPenalty;
 }
 
-function ___getMaxReward() external view returns (uint32) {
+function __getMaxReward() external view returns (uint32) {
     return StateVars.maxReward;
 }
 
-function ___getFeePercentage() external view returns (uint32) {
+function __getFeePercentage() external view returns (uint32) {
     return StateVars.feePercentage;
 }
 
-function ___getMaxStake() external view returns (uint64) {
+function __getMaxStake() external view returns (uint64) {
     return StateVars.maxStake;
 }
 
-function ___getMaxRevision() external view returns (uint32) {
+function __getMaxRevision() external view returns (uint32) {
     return StateVars.maxRevision;
 }
 
@@ -365,31 +364,29 @@ function ___getMaxRevision() external view returns (uint32) {
 // 5. StakeCategory Getters
 // =============================================================
 
-function ___getCategoryLow() external view returns (uint256) {
+function __getCategoryLow() external view returns (uint256) {
     return StakeCategorys.low;
 }
 
-function ___getCategoryMidleLow() external view returns (uint256) {
+function __getCategoryMidleLow() external view returns (uint256) {
     return StakeCategorys.midleLow;
 }
 
-function ___getCategoryMidle() external view returns (uint256) {
+function __getCategoryMidle() external view returns (uint256) {
     return StakeCategorys.midle;
 }
 
-function ___getCategoryMidleHigh() external view returns (uint256) {
+function __getCategoryMidleHigh() external view returns (uint256) {
     return StakeCategorys.midleHigh;
 }
 
-function ___getCategoryHigh() external view returns (uint256) {
+function __getCategoryHigh() external view returns (uint256) {
     return StakeCategorys.high;
 }
 
-function ___getCategoryUltraHigh() external view returns (uint256) {
+function __getCategoryUltraHigh() external view returns (uint256) {
     return StakeCategorys.ultraHigh;
 }
-
-
 
 //-------------------------------------------------------------------------- Admin Functions --------------------------------------------------------------------------
 

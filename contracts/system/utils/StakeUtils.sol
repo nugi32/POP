@@ -4,6 +4,11 @@ pragma solidity ^0.8.20;
 import "../../Pipe/StateVarPipes.sol";
 
 abstract contract stakeUtils is StateVarPipes {
+ 
+    function stateVarUtils_init(address _stateVar) internal {
+        stateVar = stateVariable(_stateVar);
+    }
+    
     enum TaskValue {Low, MidleLow,  Midle, MidleHigh, High, UltraHigh}
 
        function ___getProjectValueCategory(uint256 _value) internal view returns (TaskValue) {
