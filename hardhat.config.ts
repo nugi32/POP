@@ -28,9 +28,9 @@ const config: HardhatUserConfig = {
     },
   },
   networks: {
-    hardhat: {
+    /*hardhat: {
       chainId: 31337,
-    },
+    },*/
     sepolia: {
       url: SEPOLIA_RPC_URL,
       accounts: [PRIVATE_KEY as string],

@@ -6,7 +6,8 @@
     "deploy": "ts-node --files ./scripts/deploy.ts",
     "deploy:sepolia": "hardhat run scripts/deploy.ts --network liskSepolia",
     "verify": "hardhat verify --network liskSepolia",
-    "upgrade": "ts-node --files ./scripts/upgrade.ts"
+    "upgrade": "ts-node --files ./scripts/upgrade.ts",
+    "chain": "npx hardhat node"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-chai-matchers": "^2.1.0",

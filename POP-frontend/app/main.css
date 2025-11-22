@@ -1,0 +1,282 @@
+/* ====================================
+   ROOT VARIABLES
+==================================== */
+:root {
+  --bg: #0f1724;
+  --card: #0b1220;
+  --muted: #96a0b3;
+  --accent: #7c5cff;
+  --glass: rgba(255, 255, 255, 0.03);
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+  background: linear-gradient(180deg, #081226 0%, #0b1120 100%);
+  color: #e6eef8;
+}
+
+/* ====================================
+   FIXED TOP BAR (BLUR, LEFT-RIGHT)
+==================================== */
+.topbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  z-index: 200;
+  background: rgba(10, 15, 25, 0.55);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+}
+
+/* Brand */
+.topbar .brand {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  text-align: left;
+}
+
+/* Wallet Actions */
+.topbar .actions {
+  display: flex;
+  justify-content: right;
+  align-items: center;
+  position: relative;
+  gap: 12px;
+  background: linear-gradient(180deg, var(--card), #071022);
+  box-shadow: -20px 0 60px rgba(3, 7, 18, 0.7);
+  padding: 6px 14px;
+  border-radius: 10px;
+  margin-left: auto;
+}
+
+/* Mobile Toggle */
+.nav-toggle {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 6px;
+  height: 10px;
+  display: flex;
+  color: white;
+  align-items: center;
+}
+
+/* ====================================
+   SIDE NAV (RIGHT SLIDE)
+==================================== */
+.side-nav {
+  position: fixed;
+  top: 0;
+  right: 0;
+  height: 100vh;
+  width: 320px;
+  max-width: 90vw;
+
+  background: linear-gradient(180deg, var(--card), #071022);
+  box-shadow: -20px 0 60px rgba(3, 7, 18, 0.7);
+
+  transform: translateX(110%);
+  transition: transform 360ms cubic-bezier(.2, .9, .25, 1);
+
+  z-index: 999; /* FIX — di atas topbar */
+  padding: 24px;
+
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.side-nav.open {
+  transform: translateX(0);
+}
+
+.side-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.side-header h2 { margin: 0; }
+
+.side-nav .close {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  font-size: 18px;
+  cursor: pointer;
+}
+
+.nav-list {
+  list-style: none;
+  padding: 12px 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.nav-list a {
+  display: block;
+  padding: 10px;
+  border-radius: 8px;
+  text-decoration: none;
+  color: inherit;
+  font-weight: 600;
+}
+
+.nav-list a:hover {
+  background: var(--glass);
+}
+
+.side-footer {
+  margin-top: auto;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+/* ====================================
+   SCREEN OVERLAY (ketika nav open)
+==================================== */
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(3, 6, 12, 0.45);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 220ms;
+  z-index: 990; /* FIX — di atas topbar */
+}
+
+.overlay.visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* ====================================
+   MAIN CONTENT SPACING (karena topbar fixed)
+==================================== */
+body {
+  padding-top: 85px;
+}
+
+/* ====================================
+   HERO SECTION
+==================================== */
+.hero-section {
+  position: relative;
+  width: 100%;
+  min-height: 300vh;
+  background: url("./components/gif frieren.gif") center/cover no-repeat;
+}
+
+.hero-section::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+}
+
+/* ====================================
+   CONTENT BLOCKS
+==================================== */
+.container {
+  padding: 28px;
+  max-width: 1100px;
+  margin: 0 auto;
+  background: var(--card); /* atau warna lain */
+  backdrop-filter: none;   /* matikan blur */
+}
+
+
+.hero {
+  background: linear-gradient(90deg, rgba(124,92,255,0.08), rgba(91,140,255,0.03));
+  padding: 28px;
+  border-radius: 14px;
+  margin-bottom: 20px;
+}
+
+.hero h2 { margin: 0 0 8px 0; }
+.hero p { margin: 0 0 16px; color: var(--muted); }
+
+.hero-actions .btn {
+  display: inline-block;
+  padding: 10px 14px;
+  border-radius: 10px;
+  text-decoration: none;
+  font-weight: 600;
+  margin-right: 10px;
+}
+
+.btn.primary {
+  background: linear-gradient(90deg, var(--accent), #6b8bff);
+  color: white;
+}
+
+.btn.ghost {
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.06);
+  color: var(--muted);
+}
+
+.features {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.card {
+  background: rgba(255,255,255,0.02);
+  padding: 16px;
+  border-radius: 12px;
+}
+
+.projects .project-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.project {
+  background: rgba(255,255,255,0.02);
+  padding: 12px;
+  border-radius: 10px;
+}
+
+.site-footer {
+  text-align: center;
+  padding: 20px;
+  color: var(--muted);
+}
+
+.register {
+  text-align: center;
+  margin-top: 10px;
+}
+
+/* ====================================
+   Footer
+==================================== */
+
+.main-footer {
+  text-align: center;
+  color: white;
+  padding: 20px;
+}
+/* ====================================
+   RESPONSIVE
+==================================== */
+@media (max-width: 700px) {
+  .topbar { padding: 10px; }
+  .side-nav { width: 84vw; }
+}

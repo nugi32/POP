@@ -34,6 +34,7 @@ contract TrustlessTeamProtocol is
 
     /// @notice Task lifecycle status
     enum TaskStatus { NonExistent, Active, OpenRegistration, InProgres, CancelRequested, Completed, Cancelled }
+    enum TaskValue {Low, MidleLow,  Midle, MidleHigh, High, UltraHigh}
 
     /// @notice Join/submission state per user relative to a task
     enum UserTask { None, Request, Accepted, Submitted, Revision, Cancelled }
@@ -131,6 +132,35 @@ contract TrustlessTeamProtocol is
         string name;
     }
 
+    struct Stake {
+        uint256 low;
+        uint256 midleLow;
+        uint256 midle;
+        uint256 midleHigh;
+        uint256 high;
+        uint256 ultraHigh;
+    }
+
+    //enum TaskValue {Low, MidleLow,  Midle, MidleHigh, High, UltraHigh}
+
+    function setCreatoStakeAmount(
+        uint256 _low,
+        uint256 _midleLow,
+        uint256 _midle,
+        uint256 _midleHigh,
+        uint256 _high,
+        uint256 _ultraHigh
+    ) external onlyEmployes  {
+        Stakes storage = Stake ({
+            low : _low,
+            midleLow : _midleLow,
+            midle : _midle,
+            midleHigh : _midleHigh,
+            high : _high,
+            ultraHigh : _ultraHigh
+        })
+    }
+
     // =============================================================
     // STATE
     // =============================================================
@@ -150,6 +180,7 @@ contract TrustlessTeamProtocol is
     // Config / system
     reputationPoint public reputationPoints;
     StateVar public StateVars;
+    Stake public Stakes;
 
     uint256 public taskCounter;
     uint256 internal feeCollected;
@@ -387,7 +418,7 @@ contract TrustlessTeamProtocol is
     function getMyData() external view onlyRegistered returns (User memory) {
         return Users[msg.sender];
     }
-//
+
 //  // =============================================================
     // INTERNAL HELPERS
     // =============================================================
@@ -402,6 +433,58 @@ contract TrustlessTeamProtocol is
         } else {
             return 0;
         }
+    }
+
+    /**
+     * @notice Creator approves submission, triggering payout allocations (pull model)
+     */
+    function approveTask(uint256 taskId)
+        public
+        taskExists(taskId)
+        onlyTaskCreator(taskId)
+        nonReentrant
+        whenNotPaused
+    {
+        reputationPoint storage rp = reputationPoints;
+        Task storage t = Tasks[taskId];
+        TaskSubmit storage s = TaskSubmits[taskId];
+
+        if (t.status != TaskStatus.InProgres) revert TaskNotOpen();
+        if (s.status != SubmitStatus.Pending) revert TaskNotSubmittedYet();
+        require(!t.isRewardClaimed, "already claimed");
+        require(s.sender != address(0), "no submission");
+
+        uint256 memberGet = t.reward + t.memberStake;
+        uint256 creatorGet = t.creatorStake;
+
+        // credit withdrawable balances (pull model)
+        withdrawable[t.member] += memberGet;
+        withdrawable[t.creator] += creatorGet;
+
+        // unlock stakes and mark claimed
+        t.isMemberStakeLocked = false;
+        t.isCreatorStakeLocked = false;
+        t.isRewardClaimed = true;
+        t.status = TaskStatus.Completed;
+
+        // reputations updates
+        if (Users[t.member].isRegistered) Users[t.member].reputation += rp.taskAcceptMember;
+
+        if (Users[t.creator].isRegistered) Users[t.creator].reputation += rp.taskAcceptCreator;
+
+        // counters
+        Users[t.creator].totalTasksCompleted++;
+        Users[t.member].totalTasksCompleted++;
+
+        // clear submission slot
+        s.githubURL = "";
+        s.sender = address(0);
+        s.note = "";
+        s.status = SubmitStatus.Accepted;
+        s.revisionTime = 0;
+        s.newDeadline = 0;
+
+        emit TaskApproved(taskId);
     }
 
     /**
@@ -864,58 +947,6 @@ contract TrustlessTeamProtocol is
         }
 
         emit TaskReSubmitted(taskId, msg.sender);
-    }
-
-    /**
-     * @notice Creator approves submission, triggering payout allocations (pull model)
-     */
-    function approveTask(uint256 taskId)
-        public
-        taskExists(taskId)
-        onlyTaskCreator(taskId)
-        nonReentrant
-        whenNotPaused
-    {
-        reputationPoint storage rp = reputationPoints;
-        Task storage t = Tasks[taskId];
-        TaskSubmit storage s = TaskSubmits[taskId];
-
-        if (t.status != TaskStatus.InProgres) revert TaskNotOpen();
-        if (s.status != SubmitStatus.Pending) revert TaskNotSubmittedYet();
-        require(!t.isRewardClaimed, "already claimed");
-        require(s.sender != address(0), "no submission");
-
-        uint256 memberGet = t.reward + t.memberStake;
-        uint256 creatorGet = t.creatorStake;
-
-        // credit withdrawable balances (pull model)
-        withdrawable[t.member] += memberGet;
-        withdrawable[t.creator] += creatorGet;
-
-        // unlock stakes and mark claimed
-        t.isMemberStakeLocked = false;
-        t.isCreatorStakeLocked = false;
-        t.isRewardClaimed = true;
-        t.status = TaskStatus.Completed;
-
-        // reputations updates
-        if (Users[t.member].isRegistered) Users[t.member].reputation += rp.taskAcceptMember;
-
-        if (Users[t.creator].isRegistered) Users[t.creator].reputation += rp.taskAcceptCreator;
-
-        // counters
-        Users[t.creator].totalTasksCompleted++;
-        Users[t.member].totalTasksCompleted++;
-
-        // clear submission slot
-        s.githubURL = "";
-        s.sender = address(0);
-        s.note = "";
-        s.status = SubmitStatus.Accepted;
-        s.revisionTime = 0;
-        s.newDeadline = 0;
-
-        emit TaskApproved(taskId);
     }
 
     /**
