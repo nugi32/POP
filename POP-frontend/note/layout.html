@@ -4,10 +4,8 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Team chain</title>
-  <link rel="stylesheet" href="../layouts/css/global.css" />
-  <link rel="stylesheet" href="./main.css" />
+  <link rel="stylesheet" href="./css/global.css" />
   <script src="https://cdn.jsdelivr.net/npm/web3/dist/web3.min.js"></script>
-  <script type="module" src="../layouts/js/sidebar.js"></script>
 </head>
 
 <body>
@@ -18,6 +16,13 @@
     <div class="brand">
       <h1>Team chain</h1>
     </div>
+
+    <!-- Actions -->
+    
+<div class="wallet-container">
+  <!-- TOMBOL CONNECT LAMA DIGANTIKAN -->
+  <w3m-button></w3m-button>
+</div>
 
     <!-- Mobile Nav Toggle -->
     <button
@@ -36,7 +41,7 @@
         />
       </svg>
     </button>
-  </header> <!-- ini halaman utama awal-->
+  </header>
 
   <!-- Side Navigation -->
   <nav id="sideNav" class="side-nav" aria-hidden="true">
@@ -47,9 +52,11 @@
 
     <ul class="nav-list">
       <li><a href="./dashboard/dashboard.html">Dashboard</a></li>
-      <li><a href="./Projects/projects.html">Projects</a></li>
-      <li><a href="./task/task.html">Tasks</a></li>
-      <li><a href="./about/about.html">About US</a></li>
+      <li><a href="./X-RPL-19-11-2025/index.html">Projects</a></li>
+      <li><a href="#tasks">Tasks</a></li>
+      <li><a href="#reputation">Reputation</a></li>
+      <li><a href="#governance">Governance</a></li>
+      <li><a href="#docs">Docs</a></li>
     </ul>
 
     <div class="side-footer">
@@ -60,54 +67,45 @@
 <div id="overlay" class="overlay"></div>
 
 
+
+
 <!-- Frieren Gyat -->
     
 <div class="background">
+  <!----
+    <div id="overlay" class="overlay" tabindex="-1"></div>
 
-    <div class="main-header">
-        <h1>Trustless Team Protocol</h1>
-        <p>Secure collaboration without a central authority</p>
-    </div>
+  <main class="container">
+    <section class="hero">
+      <h2>Welcome to Trustless Team</h2>
+      <p>Build, coordinate and reward teams on-chain. Lightweight protocol primitives for reputation, staking, and trustless task orchestration. <strong>Register now.</strong></p>
+      <div class="hero-actions">
+        <a class="btn primary" href="#projects">Explore Projects</a>
+        <a class="btn ghost" href="#docs">Read Docs</a>
+      </div>
+    </section>
 
-    <div class="joinBTN">
-        <p>Not Registered Yet?</p>
-        <a class="join"  href="./Register/register.html">Register Now</a>
-    </div>
-
-    <div class="intro">
-        <h2>Why Trustless?</h2>
-        <p>
-            The protocol ensures transparent and verifiable teamwork without depending
-            on any central party. Collaboration is governed by code, not trust.
-        </p>
-    </div>
-
-    <div class="features">
-        <h2>Core Features</h2>
-        <ul>
-            <li>Decentralized governance</li>
-            <li>Automated trust enforcement</li>
-            <li>Transparent member actions</li>
-            <li>Permissionless team formation</li>
-        </ul>
-    </div>
-
-        <div class="how-to">
-        <h2>How to Join</h2>
-        <ol>
-            <li>Create your encrypted identity.</li>
-            <li>Select a team you want to collaborate with.</li>
-            <li>Get verified and join instantly.</li>
-        </ol>
-    </div>
-
-    <div class="joinBTN">
-        <p>Ready to get started?</p>
-        <a class="join"  href="./Register/register.html">Register Now</a>
-    </div>
-
+    <section id="features" class="features">
+      <article class="card">
+        <h3>Decentralized Coordination</h3>
+        <p>Assign roles, track progress, and resolve disputes with on-chain actions and transparent logs.</p>
+      </article>
+      <article class="card">
+        <h3>Reputation System</h3>
+        <p>Reputation-weighted decisions and incentives that follow contributor performance.</p>
+      </article>
+      <article class="card">
+        <h3>Trustless Payments</h3>
+        <p>Escrowed rewards, milestone payments, and automatic distribution on task completion.</p>
+      </article>
+    </section>
+        <section id="register" class="register">
+      <h3>Get Started</h3>
+      <button id="Register" class="Register">✕</button>
+      <p>Join TeamChain Protocol today and start building your decentralized team.</p>
+    </section>
+ SCRIPT CONNECT WALLET -->
 </div>
-
 
 <footer class="site-footer">
   <div class="footer-content">
@@ -133,5 +131,9 @@
     <small>© 2025 Trustless Team Protocol — All Rights Reserved</small>
   </div>
 </footer>
+
+  <script type="module" src="side-bar.js"></script>
+
+<script type="module" src="./connectwallet.js"></script>
 </body>
 </html>
